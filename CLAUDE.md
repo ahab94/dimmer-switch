@@ -1,0 +1,24 @@
+# Dimmer Switch — notes for Claude
+
+Side-view 2D light-and-shadow stealth game in Godot 4.7 (GDScript): a spy in tri-lens goggles sneaks through 10 night-time office towers. Light is the enemy: guards see far in light and only up close in the dark. Working title; the user approves names. README.md holds the roadmap.
+
+## Run and check
+- Play: `godot --path .` (or open in the editor and press F5).
+- Every change: `bash checks/verify.sh` must end with `dimmer-switch: all good` (~1 min). It runs the smoke test, `tests/game_test.gd` (mechanics, map validation, autopilot grid == world.danger), and `checks/autoplay.sh` (`tests/autoplay_test.gd`: plans every mission and replays it through the sim; must be complete and never noticed). If autoplay fails after a level edit, the level is probably unwinnable.
+- Dev flags after `--`: `--level=N` (0-based), `--autopilot` (+`--trace`), `--reckless`, `--exit-on-end` (prints `RESULT level=… complete|caught time=… rating=… alerts=…`), `--timeout=S`, `--screenshot=path.png --wait=S`, `--log-events`, `--nv`. Add `--fixed-fps 60` (before `--`) to run headless faster than real time.
+- Visuals: `godot --path . -- --level=N --autopilot --screenshot=<scratchpad>/shot.png --wait=5`, then Read the PNG. Crop and upscale with Pillow (`/usr/bin/python3`) to judge character detail.
+
+## Layout
+- `scripts/levels.gd`: the 10 missions as ASCII maps plus guard/camera/laser settings; the legend is at the top.
+- `scripts/world.gd`: the rules as pure functions of time: light per lamp mask, guard patrols (`guard_at`), vision (`guard_sees`, `camera_sees`), lasers, `danger()`.
+- `scripts/sim.gd`: one tick of play. Tile-stepped player actions with fixed tick costs (sneak 12, run 6, ...), detection meter, noise, takedowns, keycard. `wants_input()` tells drivers when the next input is read.
+- `scripts/autopilot.gd`: A* over (tile, hanging, lamps shot, key, knockouts, time mod period). Plans takedowns only on stationary guards.
+- `scripts/figures.gd`: the agent and guards as IK-jointed figures drawn in two passes (outline, then fill). Poses: sneak, run, climb, hang, shoot, takedown, fall.
+- `scripts/game.gd`: input, zoomed follow camera (`zoom`, `cam_x`, `_wx`), drawing, HUD, menus, saves (`user://progress.cfg`), dev flags.
+
+## Conventions
+- Enemies stay deterministic; the autopilot forecasts them through world.gd. Keep cycle lengths round so their LCM (`world.period`) stays small; the planner folds time over it.
+- Every action duration is a multiple of 6 ticks (the planner's step).
+- Typed vars for values from untyped objects (`var x: float = ...`), else GDScript fails to parse.
+- Scripts reference each other with `preload`, not `class_name`.
+- No real names (people, brands, other games) in anything players see.
