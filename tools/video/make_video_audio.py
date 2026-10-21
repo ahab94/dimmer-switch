@@ -158,11 +158,17 @@ def spy_theme():
     return mix.buf
 
 
-def thriller_theme():
+BASE = {"ostinato", "bass", "hats", "lead", "riser"}
+DRIVE = {"kick", "snare", "brass", "toms"}
+
+
+def thriller_theme(parts=BASE | DRIVE):
     """Original action-thriller cue: E minor, 126 BPM, 16 bars, loops
     seamlessly. A pulsing 16th-note string ostinato drives it; sub bass,
     cinematic drums with tom fills and brass stabs build the tension; a
-    soaring lead enters halfway and a riser pulls back into the loop."""
+    soaring lead enters halfway and a riser pulls back into the loop.
+    `parts` picks layers: the game plays BASE and DRIVE as two synced stems
+    and fades DRIVE in with danger."""
     bpm = 126
     beat = 60 / bpm
     bar = 4 * beat
@@ -177,34 +183,35 @@ def thriller_theme():
         t0 = b * bar
         root_name, triad = chords[b % 8]
         root = hz(root_name + "3")
-        for k, semi in enumerate(shape):          # string ostinato
+        for k, semi in enumerate(shape if "ostinato" in parts else []):   # string ostinato
             f = root * 2 ** (semi / 12)
             accent = 1.0 if k % 4 == 0 else 0.7
             mix.add(t0 + k * six, tone(f, six * 0.9, "saw", 0.07 * accent, decay=0.07, lowpass=1600 + 600 * (b >= 8), detune=0.004))
-        for k in range(8):                        # sub bass on 8ths
+        for k in range(8 if "bass" in parts else 0):   # sub bass on 8ths
             mix.add(t0 + k * beat / 2, tone(root / 2, beat * 0.45, "tri", 0.32, decay=0.12, lowpass=320))
-        for when in (0.0, 0.75, 1.5, 2.5, 3.25):   # kick: syncopated, urgent
+        for when in ((0.0, 0.75, 1.5, 2.5, 3.25) if "kick" in parts else ()):   # kick: syncopated, urgent
             mix.add(t0 + when * beat, tone(120, 0.22, "sine", 0.7, decay=0.07, glide_to=42))
-        if b >= 2:                                 # ticking hats on 16ths
+        if b >= 2 and "hats" in parts:             # ticking hats on 16ths
             for k in range(16):
                 mix.add(t0 + k * six, noise(0.03, 0.035 if k % 2 else 0.05, decay=0.01, highpass=7000, seed=rng.randrange(10 ** 6)))
-        if b >= 4:                                 # snare cracks on 2 and 4
+        if b >= 4 and "snare" in parts:            # snare cracks on 2 and 4
             for when in (1, 3):
                 mix.add(t0 + when * beat, layer(noise(0.2, 0.32, decay=0.06, lowpass=6000, highpass=900, seed=rng.randrange(10 ** 6)),
                                                 tone(190, 0.12, "tri", 0.25, decay=0.04)))
-        if b % 2 == 0:                             # brass stab on the chord
+        if b % 2 == 0 and "brass" in parts:        # brass stab on the chord
             for n in triad:
                 mix.add(t0, tone(hz(n), beat * 1.5, "saw", 0.06, decay=0.5, lowpass=1100, detune=0.006, attack=0.01))
                 mix.add(t0, tone(hz(n) / 2, beat * 1.5, "saw", 0.05, decay=0.5, lowpass=700, detune=0.006))
-        if b % 4 == 3:                             # tom fill into the next phrase
+        if b % 4 == 3 and "toms" in parts:         # tom fill into the next phrase
             for k, f in enumerate([180, 160, 140, 120, 100, 90]):
                 mix.add(t0 + 3 * beat + k * six * 0.66, tone(f, 0.2, "sine", 0.45, decay=0.07, glide_to=f * 0.6))
     lead = ["B4", "B4", "C5", "C5", "E5", "D5", "D#5", "F#5"]   # one long note per bar, bars 8-15
-    for i, n in enumerate(lead):
+    for i, n in enumerate(lead if "lead" in parts else []):
         mix.add((8 + i) * bar, vibrato(hz(n), bar * 0.98, 0.11, 0.008, 5.5, shape="saw", lowpass=2200))
         mix.add((8 + i) * bar, vibrato(hz(n) * 2, bar * 0.98, 0.04, 0.008, 5.5, shape="sine"))
     # Riser over the last bar: noise sweeping up, pulling back to the top.
-    mix.add(15 * bar, noise(bar, 0.25, decay=None, lowpass=400, sweep_to=9000, highpass=200, seed=77, attack=bar * 0.9))
+    if "riser" in parts:
+        mix.add(15 * bar, noise(bar, 0.25, decay=None, lowpass=400, sweep_to=9000, highpass=200, seed=77, attack=bar * 0.9))
     return mix.buf
 
 

@@ -13,6 +13,7 @@ const Sim := preload("res://scripts/sim.gd")
 const Autopilot := preload("res://scripts/autopilot.gd")
 const Figures := preload("res://scripts/figures.gd")
 const TouchControls := preload("res://scripts/touch_controls.gd")
+const Sound := preload("res://scripts/sound.gd")
 
 const T := World.TILE
 const HUD_H := 70.0
@@ -66,6 +67,8 @@ var figures   # scripts/figures.gd: draws the agent and the guards
 var touch := false   # on-screen controls (phones, tablets; --touch to test with a mouse)
 var _touch = null    # scripts/touch_controls.gd when touch is on
 var _menu_rows: Array[Rect2] = []   # where each mission row was drawn, for taps
+var sound   # scripts/sound.gd: music and effects
+var _last_action = null   # the sim action we last played a step sound for
 
 # Buffered presses: a tap during a move still happens when the move ends.
 var _want_shoot := false
@@ -105,6 +108,10 @@ func _ready() -> void:
 	figures = Figures.new(self, _c)
 	_setup_input()
 	_parse_flags()
+	sound = Sound.new()
+	add_child(sound)
+	if "--no-music" in OS.get_cmdline_user_args():
+		sound.music_on = false
 	touch = DisplayServer.is_touchscreen_available() or "--touch" in OS.get_cmdline_user_args()
 	if "--touch" in OS.get_cmdline_user_args():
 		Input.emulate_touch_from_mouse = true   # a mouse stands in for a finger when testing
@@ -218,6 +225,8 @@ func _setup_input() -> void:
 # --- levels -----------------------------------------------------------------
 
 func load_level(i: int) -> void:
+	if sound and state == State.MENU:
+		sound.play("click", -6.0)
 	level_index = i
 	world = World.new()
 	world.setup(Levels.LEVELS[i])
@@ -270,6 +279,7 @@ func _physics_process(delta: float) -> void:
 				print("EVENT t=%.2f nv_on" % (sim.tick / 60.0))
 		sim.step(_gather_input())
 		_handle_events()
+		_movement_sounds()
 		if sim.outcome == "complete":
 			_on_complete()
 		elif sim.outcome == "caught":
@@ -278,7 +288,40 @@ func _physics_process(delta: float) -> void:
 			_shake = 1.0
 			if exit_on_end:
 				_report("caught")
+	_update_music(delta)
 	queue_redraw()
+
+
+## Menu theme on the menu; the two mission stems during a mission, with the
+## drums pushed up by how close you are to being caught; silence on the
+## result screens so the alarm or fanfare lands.
+func _update_music(delta: float) -> void:
+	match state:
+		State.MENU:
+			sound.play_music("menu")
+		State.BRIEF, State.PLAYING, State.PAUSED:
+			sound.play_music("mission")
+			var staring := 0.0
+			for gs in sim.guard_state:
+				if gs["stare"] > 0 and not gs["ko"]:
+					staring = 0.45
+			sound.set_danger(maxf(sim.detection * 1.2, staring), delta)
+		_:
+			sound.play_music("")
+
+
+## One soft sound per step, started when each new move begins.
+func _movement_sounds() -> void:
+	var a: Dictionary = sim.action
+	if a.is_empty() or is_same(a, _last_action):
+		return
+	_last_action = a
+	match a["type"]:
+		"sneak": sound.play("step", -24.0, 0.1)
+		"run": sound.play("step", -15.0, 0.1)
+		"shimmy": sound.play("vent", -18.0, 0.1)
+		"grab": sound.play("vent", -12.0)
+		"climb": sound.play("rung", -20.0, 0.1)
 
 
 func _fit_zoom() -> void:
@@ -330,7 +373,16 @@ func _handle_events() -> void:
 		if log_events:
 			print("EVENT t=%.2f %s" % [sim.tick / 60.0, e])
 		match e:
+			"shot": sound.play("shot", -4.0, 0.05)
+			"takedown": sound.play("takedown")
+			"interact": sound.play("interact", -8.0)
+			"spotted": sound.play("spotted", -6.0)
+			"caught": sound.play("alarm", -4.0)
+			"complete": sound.play("complete", -2.0)
+		match e:
 			"shatter":
+				sound.play("shatter", -5.0, 0.05)
+				sound.play("lights_out", -12.0)
 				_flash = 0.6
 				_shake = 0.25
 				var lamp: Vector2i = world.lamps[_last_shot_lamp()]
@@ -340,27 +392,34 @@ func _handle_events() -> void:
 				_toast = "-%dW  Lights out." % WATTS_PER_LAMP
 				_toast_timer = 1.4
 			"click":
+				sound.play("click", -8.0)
 				_toast = "Nothing to shoot." if sim.ammo > 0 else "Out of ammo."
 				_toast_timer = 1.2
 			"key":
+				sound.play("key", -4.0)
 				_toast = "Keycard acquired."
 				_toast_timer = 1.6
 			"locked":
+				sound.play("locked", -8.0)
 				_toast = "Locked. Find the keycard."
 				_toast_timer = 1.2
 			"takedown":
 				_toast = "Nap time."
 				_toast_timer = 1.2
 			"heard":
+				sound.play("huh", -4.0, 0.1)
 				_toast = "Huh? What was that?"
 				_toast_timer = 1.2
 			"objective":
+				sound.play("objective", -3.0)
 				_toast = str(world.objective.get("done", "Done."))
 				_toast_timer = 2.4
 			"blackout":
+				sound.play("lights_out")
 				_flash = 0.9
 				_shake = 0.6
 			"exit_locked":
+				sound.play("locked", -8.0)
 				_toast = "Not yet: " + str(world.objective.get("text", "finish the objective")) + "."
 				_toast_timer = 1.8
 
@@ -427,6 +486,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				_want_takedown = true
 			elif event.is_action("nv"):
 				night_vision = not night_vision
+				if night_vision:
+					sound.play("nv_on", -6.0)
 			elif event.is_action("retry"):
 				load_level(level_index)
 				state = State.PLAYING

@@ -51,5 +51,5 @@ If you enjoy it, a ⭐ on the repo helps a lot.
 
 ## Roadmap
 - [x] v0.1.0: 10 missions with objectives and briefings, light and shadow, doorways, air ducts, ladders, shooting lamps, noise, takedowns, doors, cameras, lasers + night vision, keycards, flashlight guards, blackout finale, touch controls with portrait and landscape layouts, saves, autopilot gate
-- [ ] In-game music and sound (the thriller theme from the trailer, plus a tension layer)
+- [x] v0.1.1: in-game music and sound (thriller theme with a tension layer, synthesized effects)
 - [ ] Difficulty tuning with a "rookie" bot
