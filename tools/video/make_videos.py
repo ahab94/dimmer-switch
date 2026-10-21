@@ -66,24 +66,24 @@ VIDEOS = [
     {
         "id": "01-trailer", "orient": "landscape",
         "segments": [("l-clean-02", 0.0, 7.0, 1.3), ("l-clean-03", 0.3, 4.0, 1.0), ("l-clean-05", 1.0, 9.0, 1.5),
-                     ("l-clean-06", 0.5, 7.5, 1.4), ("l-clean-07", 3.0, 14.6, 1.6), ("l-clean-08", 1.6, 5.8, 1.0),
+                     ("l-clean-06", 0.5, 7.5, 1.4), ("l-clean-07", 0.0, 12.0, 1.5), ("l-clean-08", 1.6, 5.8, 1.0),
                      ("l-clean-10", 4.0, 19.0, 1.6)],
         "intro": ("EVERY LAMP\nIS YOUR ENEMY.", 2.6),
         "captions": "auto-trailer",
         "cut_whoosh": True, "caption_pop": False,
         "outro": 4.0,
         "title": "Every lamp is your enemy | free 2D stealth game trailer",
-        "blurb": "A side-view light-and-shadow stealth game. Shoot out the lights, hang from pipes, hide in the dark.",
+        "blurb": "A side-view light-and-shadow stealth game. Shoot out the lights, crawl through vents, hide in the dark.",
         "tags": BASE_TAGS + ["game trailer", "indie game trailer"],
     },
     {
         "id": "02-i-made-a-game", "orient": "portrait",
         "segments": [("p-clean-02", 0.0, 4.5, 1.4), ("p-clean-03", 0.4, 3.6, 1.0), ("p-clean-05", 1.0, 8.0, 1.6),
-                     ("p-clean-06", 0.5, 4.5, 1.0), ("p-clean-08", 1.8, 5.0, 1.0)],
+                     ("p-clean-06", 2.5, 6.5, 1.0), ("p-clean-08", 1.8, 5.0, 1.0)],
         "captions": [
             (0.0, 3.2, "I made a stealth game\nwhere LIGHT\nis the enemy", "hook"),
             (3.2, 6.4, "so you just...\nshoot the lights", "hook"),
-            (6.4, 10.8, "nobody ever\nlooks up", "hook"),
+            (6.4, 10.8, "nobody ever\nchecks the vents", "hook"),
             (10.8, 14.8, "nap time", "hook"),
             (14.8, 18.0, "and the lasers\nare invisible", "hook"),
         ],
@@ -105,16 +105,16 @@ VIDEOS = [
         "tags": BASE_TAGS + ["shorts", "energy saving", "funny game"],
     },
     {
-        "id": "04-nobody-looks-up", "orient": "portrait",
+        "id": "04-vents", "orient": "portrait",
         "segments": [("p-clean-05", 0.8, 11.9, 1.3)],
         "captions": [
             (0.0, 2.5, "Rule #1 of\nstealth games:", "hook"),
-            (2.5, 6.0, "NOBODY\never looks up", "hook"),
+            (2.5, 6.0, "NOBODY checks\nthe vents", "hook"),
             (6.0, 8.5, "not once.", "hook"),
         ],
         "sfx": [(1.2, "tiptoe"), (3.8, "tiptoe")],
-        "title": "Rule #1 of stealth games: nobody EVER looks up 👆 #shorts",
-        "blurb": "Hang from a pipe and walk right over the guards. They never look up.",
+        "title": "Rule #1 of stealth games: nobody EVER checks the vents 🕳️ #shorts",
+        "blurb": "Crawl through the air ducts right over the guards' heads. They never check the vents.",
         "tags": BASE_TAGS + ["shorts", "stealth", "game logic"],
     },
     {
@@ -148,11 +148,11 @@ VIDEOS = [
     },
     {
         "id": "07-nap-time", "orient": "portrait",
-        "segments": [("p-clean-06", 0.0, 7.0, 1.0)],
+        "segments": [("p-clean-06", 1.0, 7.5, 1.0)],
         "captions": [
-            (0.0, 1.2, "POV: you're on\nnight shift", "hook"),
-            (1.2, 2.0, "someone's\nbehind you", "hook"),
-            (2.0, 4.5, "nap time", "hook"),
+            (0.0, 2.0, "POV: you're on\nnight shift", "hook"),
+            (2.0, 3.5, "someone's\nbehind you", "hook"),
+            (3.5, 6.0, "nap time", "hook"),
         ],
         "title": "POV: you're a security guard on night shift 😴 #shorts",
         "blurb": "Never turn your back in a stealth game. Takedowns only work from behind!",
@@ -160,19 +160,19 @@ VIDEOS = [
     },
     {
         "id": "08-cameras", "orient": "portrait",
-        "segments": [("p-clean-07", 3.0, 14.6, 1.4)],
+        "segments": [("p-clean-07", 0.0, 12.0, 1.3)],
         "captions": [
-            (0.0, 2.5, "Cameras can only\nsee in the LIGHT", "hook"),
-            (2.5, 4.6, "so...", "hook"),
-            (4.7, 8.3, "work smarter,\nnot harder", "hook"),
+            (0.0, 2.0, "Cameras can only\nsee in the LIGHT", "hook"),
+            (2.0, 4.5, "so... lights out", "hook"),
+            (4.5, 9.2, "work smarter,\nnot harder", "hook"),
         ],
         "title": "Security cameras can't see in the dark 📷 #shorts",
         "blurb": "Cameras need light. You have a pistol. Do the math.",
         "tags": BASE_TAGS + ["shorts", "security camera", "stealth"],
     },
     {
-        "id": "09-alcove", "orient": "portrait",
-        "segments": [("p-clean-01", 3.0, 8.5, 1.0)],
+        "id": "09-doorway", "orient": "portrait",
+        "segments": [("p-clean-01", 3.2, 8.5, 1.0)],
         "captions": [
             (0.0, 2.1, "he's walking\nRIGHT at me", "hook"),
             (2.1, 3.0, "don't. move.", "hook"),
@@ -180,7 +180,7 @@ VIDEOS = [
         ],
         "sfx": [(1.0, "tiptoe"), (2.1, "uh_oh", 0.7)],
         "title": "He walked RIGHT past me 😮‍💨 #shorts",
-        "blurb": "Dark alcoves let guards walk right past you. Just don't stand in the light.",
+        "blurb": "Step back into a dark doorway and the guard walks right past. Just don't stand in the light.",
         "tags": BASE_TAGS + ["shorts", "close call", "stealth"],
     },
     {
@@ -241,7 +241,7 @@ def expand(v):
                         [(i * seg, (i + 1) * seg, f"{i + 1}/10", "counter") for i in range(10)]
     if v["captions"] == "auto-trailer":
         t, caps = 0.0, []
-        lines = ["Light is how they see you", "So shoot out the lights", "Nobody ever looks up",
+        lines = ["Light is how they see you", "So shoot out the lights", "Nobody checks the vents",
                  "Never turn your back", "Cameras need light too", "Night vision shows the lasers",
                  "10 missions. Flashlights. Rude."]
         for (src, a, b, sp), text in zip(v["segments"], lines):
@@ -443,7 +443,7 @@ def build(v, tmp):
         png = os.path.join(tmp, f"cap{i}.png")
         caption_png(png, text, style, v["orient"])
         inputs += ["-loop", "1", "-t", f"{total:.2f}", "-i", png]
-        filters.append(f"{last}[{i + 1}:v]overlay=0:0:enable='between(t,{t0 + offset:.2f},{t1 + offset:.2f})'[v{i}]")
+        filters.append(f"{last}[{i + 1}:v]overlay=0:0:enable='between(t,{t0 + offset:.2f},{t1 + offset - 0.04:.2f})'[v{i}]")
         last = f"[v{i}]"
 
     cues += [(c[0] + offset, c[1], c[2] if len(c) > 2 else 1.0) for c in v.get("sfx", [])]
@@ -495,7 +495,7 @@ def description(blurb, tags):
     play = f"▶ PLAY FREE: {PLAY}\n\n" if PLAY else ""
     return f"""{play}{blurb}
 
-{NAME.title()} is a free side-view stealth game where light is the enemy: shoot out the lamps, hang from pipes, hide in dark alcoves and sneak past guards, cameras and invisible lasers. 10 missions. Made with the Godot engine; every sound and pixel is made in code.
+{NAME.title()} is a free side-view stealth game where light is the enemy: shoot out the lamps, crawl through air ducts, hide in dark doorways and sneak past guards, cameras and invisible lasers. 10 missions. Made with the Godot engine; every sound and pixel is made in code.
 
 {" ".join("#" + t for t in tags)}"""
 
