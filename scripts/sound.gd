@@ -11,6 +11,10 @@ extends Node
 ## players route into named buses (Music, SFX) that mix into Master, so each
 ## group's volume is set in one place. In a browser, sound can only start
 ## after the player's first tap or key press; Godot resumes it then.
+##
+## The buses are declared in default_bus_layout.tres, not created here at
+## runtime: the web build plays sounds through the browser's own audio graph,
+## and a bus added at runtime never reaches it, so the web build was silent.
 
 const SFX := {
 	"shot": preload("res://audio/sfx/shot.wav"),
