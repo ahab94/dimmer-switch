@@ -452,8 +452,8 @@ def build(v, tmp):
     if "intro" in v:
         cues.append((0.05, "nv_on", 0.8))
     base = len(captions) + 1
-    audio_inputs = ["-stream_loop", "-1", "-i", os.path.join(AUDIO, "spy_theme.wav")]
-    mix = [f"[{base}:a]volume={v.get('music_volume', 0.55)},aresample=48000[m]"]
+    audio_inputs = ["-stream_loop", "-1", "-i", os.path.join(AUDIO, v.get("music", "thriller_theme") + ".wav")]
+    mix = [f"[{base}:a]volume={v.get('music_volume', 0.8)},aresample=48000[m]"]
     labels = ["[m]"]
     for j, (ct, name, vol) in enumerate(cues):
         audio_inputs += ["-i", os.path.join(AUDIO, name + ".wav")]

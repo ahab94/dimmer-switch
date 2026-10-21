@@ -442,8 +442,13 @@ func _draw() -> void:
 	_draw_lamps()
 	_draw_lasers()
 	_draw_cameras()
+	var hidden := _player_hidden()
+	if hidden:
+		_draw_player()   # tucked into the doorway: guards pass in front of him
 	_draw_guards()
-	_draw_player()
+	if not hidden:
+		_draw_player()
+	_draw_ducts_front()
 	for s in _shards:
 		draw_rect(Rect2(s["p"], Vector2(3, 3)), Color(1, 0.95, 0.8, clampf(s["life"], 0, 1)))
 	draw_set_transform_matrix(Transform2D())
@@ -503,15 +508,20 @@ func _draw_tiles() -> void:
 						var yy := r.position.y + 5 + k * 11
 						draw_line(Vector2(r.position.x + 8, yy), Vector2(r.position.x + 24, yy), rail, 2.0)
 				"=":
-					var pc := _c(Color(0.42, 0.45, 0.5).lerp(Color(0.8, 0.72, 0.55), amt))
-					draw_rect(Rect2(r.position + Vector2(0, 3), Vector2(T, 6)), pc)
-					draw_rect(Rect2(r.position + Vector2(0, 3), Vector2(T, 2)), _c(pc.lightened(0.3)))
-					if x % 2 == 0:
-						draw_rect(Rect2(r.position + Vector2(T - 4, 1), Vector2(4, 10)), _c(pc.darkened(0.3)))
+					# The inside of an air duct, seen through its cut-away front.
+					draw_rect(_duct_rect(p), _c(Color(0.05, 0.055, 0.07).lerp(Color(0.2, 0.18, 0.14), amt * 0.5)))
 				"O":
-					var inset := Rect2(r.position + Vector2(3, 2), Vector2(T - 6, T - 2))
-					draw_rect(inset, _c(Color(0.0, 0.0, 0.0, 0.55 if amt < World.DIM_AMOUNT else 0.25)))
-					draw_rect(inset, _c(Color(0.3, 0.33, 0.4).lerp(Color(0.7, 0.6, 0.4), amt)), false, 2.0)
+					# A deep doorway recess: you step back into it, out of the corridor.
+					var floor_y := r.end.y
+					var door := Rect2(r.position.x + 3, floor_y - 54, T - 6, 54)
+					var top_c := _c(Color(0.0, 0.0, 0.0, 0.85 if amt < World.DIM_AMOUNT else 0.5))
+					var bot_c := _c(Color(0.02, 0.02, 0.03, 0.6 if amt < World.DIM_AMOUNT else 0.3))
+					draw_polygon(PackedVector2Array([door.position, Vector2(door.end.x, door.position.y), door.end, Vector2(door.position.x, door.end.y)]),
+						PackedColorArray([top_c, top_c, bot_c, bot_c]))
+					var frame := _c(Color(0.25, 0.27, 0.33).lerp(Color(0.65, 0.56, 0.4), amt))
+					draw_rect(Rect2(door.position.x - 3, door.position.y - 3, 3, door.size.y + 3), frame)
+					draw_rect(Rect2(door.end.x, door.position.y - 3, 3, door.size.y + 3), frame)
+					draw_rect(Rect2(door.position.x - 3, door.position.y - 4, door.size.x + 6, 4), frame)
 				"D", "R":
 					var open := player_tile == p
 					var dc: Color = C_DOOR if ch == "D" else (C_LOCK if not sim.has_key else Color(0.35, 0.8, 0.45))
@@ -533,6 +543,41 @@ func _draw_tiles() -> void:
 						var bob := sin(_anim * 4.0) * 3.0
 						draw_rect(Rect2(r.position + Vector2(9, 12 + bob), Vector2(14, 10)), _c(C_KEY))
 						draw_rect(Rect2(r.position + Vector2(11, 15 + bob), Vector2(5, 2)), _c(Color(0.05, 0.2, 0.3)))
+
+
+## An air duct runs high in the corridor, above the guards' caps. Its
+## logical tile is the one below the ceiling row, but it's drawn up there.
+func _duct_rect(p: Vector2i) -> Rect2:
+	var r := _tile_rect(p)
+	return Rect2(r.position.x, r.position.y - 16, T, 24)
+
+
+## Front of the ducts, drawn after the player so he's inside them: top and
+## bottom sheet metal, seams with rivets, a slatted underside, end caps.
+func _draw_ducts_front() -> void:
+	var light: PackedFloat32Array = world.light_amounts(sim.mask)
+	for y in world.h:
+		for x in world.w:
+			var p := Vector2i(x, y)
+			if world.cell(p) != "=":
+				continue
+			var amt: float = light[y * world.w + x]
+			var metal := _c(Color(0.36, 0.39, 0.44).lerp(Color(0.78, 0.72, 0.58), amt))
+			var dr := _duct_rect(p)
+			draw_rect(Rect2(dr.position, Vector2(T, 4)), metal)
+			draw_rect(Rect2(dr.position, Vector2(T, 1.5)), _c(metal.lightened(0.35)))
+			draw_rect(Rect2(dr.position.x, dr.end.y - 4, T, 4), metal.darkened(0.15))
+			for k in 4:   # slats on the underside
+				draw_rect(Rect2(dr.position.x + 2 + k * 8, dr.end.y - 3, 5, 2), _c(Color(0.05, 0.05, 0.06)))
+			draw_rect(Rect2(dr.end.x - 2, dr.position.y, 2, dr.size.y), metal.darkened(0.25))   # seam
+			draw_circle(dr.position + Vector2(T - 5, 7), 1.1, metal.lightened(0.3))
+			draw_circle(dr.position + Vector2(T - 5, dr.size.y - 7), 1.1, metal.lightened(0.3))
+			for side in [-1, 1]:
+				if world.cell(p + Vector2i(side, 0)) != "=":
+					var ex := dr.position.x if side < 0 else dr.end.x - 5
+					draw_rect(Rect2(ex, dr.position.y, 5, dr.size.y), metal)
+					for k in 3:
+						draw_rect(Rect2(ex + 1, dr.position.y + 5 + k * 5, 3, 2), _c(Color(0.05, 0.05, 0.06)))
 
 
 ## Light at each tile corner: the mean of the open tiles touching it.
@@ -710,6 +755,12 @@ func _draw_guards() -> void:
 			_text(foot + Vector2(0, -50), "?", 20, C_WARN, HORIZONTAL_ALIGNMENT_CENTER)
 
 
+func _player_hidden() -> bool:
+	var occ: Vector2i = sim.occupied()
+	var still: bool = sim.action.is_empty() or sim.action["type"] == "wait"
+	return world.cell(occ) == "O" and sim.light_here() <= World.DIM and still
+
+
 func _draw_player() -> void:
 	var vp: Vector2 = sim.visual_pos()
 	var foot := origin + vp * T + Vector2(T / 2.0, T)
@@ -720,18 +771,21 @@ func _draw_player() -> void:
 	var prog: float = 0.0 if a.is_empty() else float(a["elapsed"]) / a["total"]
 	var on_ladder: bool = world.cell(sim.tile) == "H" and world.cell(sim.tile + Vector2i.DOWN) != "#"
 	var pose := "sneak"
-	var phase := prog * 0.5 if type == "sneak" else prog
+	# One full stride per tile, so feet keep pace with the ground.
+	var phase := prog
 	var aim := Vector2.ZERO
-	if sim.hanging or type == "grab":
-		pose = "hang"
-		phase = _anim * 0.4 if type != "shimmy" else prog
+	if type == "grab":
+		pose = "climb"   # pulling himself up into the vent
+	elif sim.hanging:
+		pose = "crawl"
 	elif type == "climb" or (a.is_empty() and on_ladder):
 		pose = "climb"
 	elif type == "run":
 		pose = "run"
-		phase = prog * 0.5 + (0.5 if sim.tile.x % 2 == 0 else 0.0)
 	elif type == "sneak":
-		phase = prog * 0.5 + (0.5 if sim.tile.x % 2 == 0 else 0.0)
+		pass
+	if _player_hidden():
+		pose = "hide"
 	elif type == "fall":
 		pose = "fall"
 	elif type == "shoot":
@@ -739,6 +793,18 @@ func _draw_player() -> void:
 		aim = origin + Vector2(world.lamps[a.get("lamp", 0)]) * T + Vector2(T / 2.0, 13)
 	elif type == "takedown":
 		pose = "takedown"
+	if pose == "hide":
+		# Pressed into the shadows: drawn darker, only the goggles glow.
+		figures.tint = func(c: Color) -> Color: return _c(c.darkened(0.5))
+		figures.agent(foot, sim.face, pose, phase, night_vision, aim, 0.0)
+		figures.tint = _c
+		# The door frame in front of him sells that he's inside the recess.
+		var r := _tile_rect(sim.occupied())
+		var frame := _c(Color(0.25, 0.27, 0.33))
+		draw_rect(Rect2(r.position.x, r.end.y - 57, 4, 57), frame)
+		draw_rect(Rect2(r.end.x - 4, r.end.y - 57, 4, 57), frame)
+		draw_rect(Rect2(r.position.x, r.end.y - 58, T, 4), frame)
+		return
 	figures.agent(foot, sim.face, pose, phase, night_vision, aim, rim)
 
 

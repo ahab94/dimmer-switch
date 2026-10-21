@@ -153,6 +153,9 @@ func agent(foot: Vector2, fwd: float, pose: String, phase: float, nv: bool, aim 
 	if pose == "hang":
 		_agent_hang(foot, fwd, phase, nv, edge)
 		return
+	if pose == "crawl":
+		_agent_crawl(foot, fwd, phase, nv, edge)
+		return
 	if pose == "climb":
 		_agent_climb(foot, phase, nv, edge)
 		return
@@ -165,15 +168,22 @@ func agent(foot: Vector2, fwd: float, pose: String, phase: float, nv: bool, aim 
 	var stance := 5.0
 	match pose:
 		"sneak":
+			# stride is set so a full step cycle covers exactly one tile
+			# (4 x stride = 32 px): planted feet don't slide on the floor.
 			hip_h = 20.0 - absf(sin(cyc)) * 0.8
-			stride = 5.5
-			lift = 2.5
+			stride = 8.0
+			lift = 3.0
 		"run":
 			hip_h = 20.5 - absf(sin(cyc)) * 1.5
 			lean = 0.32
-			stride = 10.0
-			lift = 6.0
+			stride = 8.5
+			lift = 7.0
 			stance = 0.0
+		"hide":
+			# Standing tall with his back to the doorway, arms tight at his sides.
+			hip_h = 21.5
+			lean = 0.0
+			stance = 2.5
 		"fall":
 			hip_h = 21.0
 			lean = 0.05
@@ -191,7 +201,10 @@ func agent(foot: Vector2, fwd: float, pose: String, phase: float, nv: bool, aim 
 	var shoulder := neck + Vector2(-fwd * 0.5, 2.0)
 	var back_hand := shoulder + Vector2((-4.0 - sin(cyc) * stride * 0.7) * fwd, 13.0)
 	var front_hand := shoulder + Vector2((4.0 + sin(cyc) * stride * 0.7) * fwd, 13.0)
-	if pose == "sneak":
+	if pose == "hide":
+		back_hand = shoulder + Vector2(-2.5 * fwd, 15.0)
+		front_hand = shoulder + Vector2(2.0 * fwd, 15.0)
+	elif pose == "sneak":
 		# Hands up and ready, close to the chest.
 		back_hand = shoulder + Vector2(8.0 * fwd, 7.0)
 		front_hand = shoulder + Vector2(11.0 * fwd, 4.0 + sin(cyc) * 0.8)
@@ -281,6 +294,34 @@ func _agent_hang(foot: Vector2, fwd: float, phase: float, nv: bool, edge: Color)
 	limb(grip + Vector2(4, 0), grip + Vector2(4, 0.01), 4.6, A_GEAR, edge)
 	_flush(edge)
 	_agent_face(shoulder + Vector2(fwd * 2.5, -4.5), fwd, nv)
+
+
+## Crawling on elbows and knees inside an air duct. `foot` is the bottom of
+## the duct's tile; the duct floor sits 28 px above it.
+func _agent_crawl(foot: Vector2, fwd: float, phase: float, nv: bool, edge: Color) -> void:
+	var floor_y := foot.y - 28.0
+	var x := foot.x
+	var c := sin(phase * TAU)
+	var hip := Vector2(x - 7.0 * fwd, floor_y - 5.5)
+	var neck := Vector2(x + 6.0 * fwd, floor_y - 7.0)
+	var head := Vector2(x + 11.5 * fwd, floor_y - 8.5)
+	var back := A_SUIT.darkened(0.35)
+	var front := A_SUIT.lightened(0.06)
+	_begin()
+	# knees down, feet trailing behind, alternating
+	limb(hip, Vector2(x - (1.0 + c * 2.5) * fwd, floor_y - 1.0), 4.5, back, edge)
+	limb(Vector2(x - (1.0 + c * 2.5) * fwd, floor_y - 1.0), Vector2(x - 14.0 * fwd, floor_y - 2.0), 4.0, back, edge)
+	limb(Vector2(x - 2.0 * fwd, floor_y - 9.0), Vector2(x - 2.0 * fwd, floor_y - 9.0) + Vector2(-9 * fwd, 0), 5.0, A_GEAR, edge)   # backpack
+	limb(neck, Vector2(x + (11.0 - c * 3.0) * fwd, floor_y - 1.0), 3.8, back, edge)
+	_torso(hip, neck, 4.0, 5.0, A_SUIT, edge)
+	_head_part(head, 5.0, A_SUIT_HI.darkened(0.35))
+	limb(hip, Vector2(x - (1.0 - c * 2.5) * fwd, floor_y - 1.0), 4.5, front, edge)
+	limb(Vector2(x - (1.0 - c * 2.5) * fwd, floor_y - 1.0), Vector2(x - 15.0 * fwd, floor_y - 1.5), 4.0, front, edge)
+	limb(neck, Vector2(x + (11.0 + c * 3.0) * fwd, floor_y - 1.0), 3.8, front, edge)
+	_flush(edge)
+	var lens_at := head + Vector2(4.0 * fwd, -0.5 if nv else -3.5)
+	canvas.draw_line(head + Vector2(1.5 * fwd, -2), lens_at, _t(A_GEAR), 2.0)
+	_draw_lenses(lens_at, fwd, nv)
 
 
 func _agent_climb(foot: Vector2, phase: float, nv: bool, edge: Color) -> void:

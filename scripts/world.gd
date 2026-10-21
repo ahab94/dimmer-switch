@@ -304,6 +304,8 @@ func camera_sees(i: int, t: int, p: Vector2i, mask: int) -> float:
 	var lvl := light_level(p, mask)
 	if cell(p) == "O" and lvl <= DIM:
 		return -1.0
+	if cell(p) == "=":
+		return -1.0   # inside an air duct
 	if d > minf(c["range"], CAMERA_RANGE[lvl]) or d < 0.1:
 		return -1.0
 	var ang := rad_to_deg((target - eye).angle())

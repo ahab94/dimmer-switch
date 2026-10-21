@@ -27,7 +27,7 @@ var _danger_memo := {}
 
 func plan(level_world) -> Array:
 	world = level_world
-	var start := {"p": world.start, "hang": false, "mask": 0, "key": false, "ko": 0, "t": 0}
+	var start := {"p": world.start, "hang": false, "mask": 0, "key": false, "ko": 0, "t": 0, "pen": 0, "last": ""}
 	var open := _Heap.new()
 	var seen := {}
 	var parents := {}   # state key -> [parent key, input or null, state]
@@ -50,8 +50,11 @@ func plan(level_world) -> Array:
 			if seen.has(nk):
 				continue
 			seen[nk] = true
+			var cls := _style(nxt[0])
+			ns["pen"] = s["pen"] + _style_penalty(s["last"], cls)
+			ns["last"] = cls if cls != "" else s["last"]
 			parents[nk] = [key, nxt[0], ns]
-			open.push(ns["t"] + _h(ns), nk)
+			open.push(ns["t"] + _h(ns) + ns["pen"], nk)
 	if trace:
 		print("autopilot: no route after %d expansions" % expansions)
 	return []
@@ -67,6 +70,48 @@ func _key(s: Dictionary) -> int:
 	k = k * 2 + int(s["hang"])
 	k = k * 32 + s["p"].y
 	return k * 64 + s["p"].x
+
+
+# Style: among routes that are never seen, prefer ones that look like a
+# person moving: keep a steady pace, don't dither back and forth, and wait
+# in one go rather than in little stutters. These penalties only steer the
+# search order (in ticks of "cost"); safety checks are unchanged.
+const PACE_CHANGE := 30
+const REVERSE := 60
+const STOP_START := 18
+
+
+static func _style(input) -> String:
+	if input == null:
+		return ""
+	if input.has("wait"):
+		return "wait"
+	if input.has("shoot") or input.has("takedown"):
+		return "act"
+	var d: Vector2i = input["dir"]
+	if d.y != 0:
+		return "climb^" if d.y < 0 else "climbv"
+	return ("run" if input.get("run", false) else "sneak") + (">" if d.x > 0 else "<")
+
+
+static func _style_penalty(prev: String, cur: String) -> int:
+	if prev == "" or cur == "" or prev == cur:
+		return 0
+	var pen := 0
+	var ph := prev.begins_with("run") or prev.begins_with("sneak")
+	var ch := cur.begins_with("run") or cur.begins_with("sneak")
+	if ph and ch:
+		if prev.right(1) != cur.right(1):
+			pen += REVERSE
+		if prev.left(3) != cur.left(3):
+			pen += PACE_CHANGE
+	if prev.begins_with("climb") and cur.begins_with("climb"):
+		pen += REVERSE   # up then down (or down then up) is dithering
+	elif ph != ch and not (prev == "wait" or cur == "wait"):
+		pen += STOP_START / 2
+	if (prev == "wait") != (cur == "wait"):
+		pen += STOP_START
+	return pen
 
 
 ## Estimated ticks to the exit (via the keycard if we still need it), at

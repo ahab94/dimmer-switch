@@ -4,7 +4,7 @@ extends RefCounted
 ## Map legend (40 columns; every row the same width):
 ##   #  solid wall or floor         .  empty air
 ##   P  player start                X  extraction (the exit)
-##   H  ladder (UP/DOWN to climb)   =  pipe (UP from below to hang on it)
+##   H  ladder (UP/DOWN to climb)   =  air duct (UP from below to crawl in)
 ##   L  ceiling lamp                O  alcove: guards walk past you if it's not lit
 ##   D  door (blocks sight)         R  locked door (needs the keycard)
 ##   K  keycard
@@ -130,9 +130,9 @@ const LEVELS := [
 	},
 	{
 		"code": "OP-05",
-		"name": "Pipe Dreams",
-		"brief": "Nobody ever looks up. Nobody.",
-		"tip": "Press UP under a pipe to grab it, DOWN to drop. Guards only look straight ahead.",
+		"name": "Vent Diagram",
+		"brief": "Nobody ever checks the vents. Nobody.",
+		"tip": "Press UP under a vent to climb in, DOWN to drop out. Guards never check the vents.",
 		"ammo": 0,
 		"map": [
 			"########################################",
