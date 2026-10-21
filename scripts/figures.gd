@@ -184,6 +184,10 @@ func agent(foot: Vector2, fwd: float, pose: String, phase: float, nv: bool, aim 
 			hip_h = 21.5
 			lean = 0.0
 			stance = 2.5
+		"idle":
+			# Crouched and still; only a slow breath moves him.
+			hip_h = 20.0 + sin(phase * 1.6) * 0.4
+			cyc = 0.0
 		"fall":
 			hip_h = 21.0
 			lean = 0.05
@@ -204,7 +208,7 @@ func agent(foot: Vector2, fwd: float, pose: String, phase: float, nv: bool, aim 
 	if pose == "hide":
 		back_hand = shoulder + Vector2(-2.5 * fwd, 15.0)
 		front_hand = shoulder + Vector2(2.0 * fwd, 15.0)
-	elif pose == "sneak":
+	elif pose in ["sneak", "idle"]:
 		# Hands up and ready, close to the chest.
 		back_hand = shoulder + Vector2(8.0 * fwd, 7.0)
 		front_hand = shoulder + Vector2(11.0 * fwd, 4.0 + sin(cyc) * 0.8)

@@ -784,6 +784,9 @@ func _draw_player() -> void:
 		pose = "run"
 	elif type == "sneak":
 		pass
+	elif type in ["", "wait"]:
+		pose = "idle"   # standing still: no stride, just a slow breath
+		phase = _anim
 	if _player_hidden():
 		pose = "hide"
 	elif type == "fall":
