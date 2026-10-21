@@ -27,7 +27,7 @@ var _danger_memo := {}
 
 func plan(level_world) -> Array:
 	world = level_world
-	var start := {"p": world.start, "hang": false, "mask": 0, "key": false, "ko": 0, "t": 0, "pen": 0, "last": ""}
+	var start := {"p": world.start, "hang": false, "mask": 0, "key": false, "ko": 0, "obj": world.objective_tile.x < 0, "t": 0, "pen": 0, "last": ""}
 	var open := _Heap.new()
 	var seen := {}
 	var parents := {}   # state key -> [parent key, input or null, state]
@@ -42,7 +42,7 @@ func plan(level_world) -> Array:
 		expansions += 1
 		if expansions > MAX_EXPANSIONS:
 			break
-		if s["p"] == world.exit and world.supported(s["p"], s["hang"]):
+		if s["p"] == world.exit and s["obj"] and world.supported(s["p"], s["hang"]):
 			return _unwind(parents, key)
 		for nxt in _successors(s):
 			var ns: Dictionary = nxt[1]
@@ -65,6 +65,7 @@ func _key(s: Dictionary) -> int:
 	var t: int = s["t"] % world.period if world.period > 0 else s["t"]
 	var k: int = t / Q
 	k = k * 16 + s["ko"]
+	k = k * 2 + int(s["obj"])
 	k = k * 2 + int(s["key"])
 	k = k * 256 + s["mask"]
 	k = k * 2 + int(s["hang"])
@@ -86,7 +87,7 @@ static func _style(input) -> String:
 		return ""
 	if input.has("wait"):
 		return "wait"
-	if input.has("shoot") or input.has("takedown"):
+	if input.has("shoot") or input.has("takedown") or input.has("interact"):
 		return "act"
 	var d: Vector2i = input["dir"]
 	if d.y != 0:
@@ -118,10 +119,23 @@ static func _style_penalty(prev: String, cur: String) -> int:
 ## sneaking speed. That can overestimate, so routes aren't always the very
 ## fastest, but the search is many times quicker.
 func _h(s: Dictionary) -> int:
-	var p: Vector2i = s["p"]
+	# Visit the remaining stops (keycard, objective) in the better order.
+	var stops: Array[Vector2i] = []
 	if world.keycard.x >= 0 and not s["key"]:
-		return (_manhattan(p, world.keycard) + _manhattan(world.keycard, world.exit)) * Sim.SNEAK
-	return _manhattan(p, world.exit) * Sim.SNEAK
+		stops.append(world.keycard)
+	if not s["obj"]:
+		stops.append(world.objective_tile)
+	var p: Vector2i = s["p"]
+	var best := 1 << 30
+	var orders: Array = [stops] if stops.size() < 2 else [stops, [stops[1], stops[0]]]
+	for order in orders:
+		var d := 0
+		var at := p
+		for stop in order:
+			d += _manhattan(at, stop)
+			at = stop
+		best = mini(best, d + _manhattan(at, world.exit))
+	return best * Sim.SNEAK
 
 
 static func _manhattan(a: Vector2i, b: Vector2i) -> int:
@@ -258,6 +272,16 @@ func _successors(s: Dictionary) -> Array:
 				ns["mask"] = mask | (1 << lamp)
 				ns["shots"] = s.get("shots", 0) + 1
 				out.append([{"shoot": true}, ns])
+	# The mission objective: stand still at it for a while.
+	if not s["obj"] and not hang and p == world.objective_tile:
+		var dur: int = world.objective_ticks()
+		if _safe(p, p, t, dur, mask, ko):
+			var ns := s.duplicate()
+			ns["t"] = t + dur
+			ns["obj"] = true
+			if world.objective_blackout():
+				ns["mask"] = world.all_lamps_mask()
+			out.append([{"interact": true}, ns])
 	# Takedowns, only on guards who stand still (their body's tile is known).
 	if not hang:
 		for i in world.guards.size():

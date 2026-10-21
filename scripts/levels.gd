@@ -7,7 +7,7 @@ extends RefCounted
 ##   H  ladder (UP/DOWN to climb)   =  air duct (UP from below to crawl in)
 ##   L  ceiling lamp                O  alcove: guards walk past you if it's not lit
 ##   D  door (blocks sight)         R  locked door (needs the keycard)
-##   K  keycard
+##   K  keycard                     I  the objective (E to use; the exit opens after)
 ## You stand on a tile when the tile below is solid or a ladder.
 ##
 ## guards:  row, x0, x1 (patrol between them; x1 omitted = stands still),
@@ -17,6 +17,7 @@ extends RefCounted
 ##          torch (carries a flashlight).
 ## cameras: pos, a0/a1 (sweep angles in degrees, 0 = right, 90 = down),
 ##          period (ticks per full sweep), optional range, fov, phase.
+## objective: kind (hack, photo, bug, docs, item, switch = blackout), text, done.
 ## lasers:  x, y0..y1 (a vertical beam), on/off ticks (off 0 = always on), phase.
 ##
 ## Timing numbers are ticks at 60 per second. Keep enemy cycles to round
@@ -27,8 +28,9 @@ const LEVELS := [
 	{
 		"code": "OP-01",
 		"name": "Night Shift",
-		"brief": "Third Shift needs a spy who works in the dark. Get to the roof.",
-		"tip": "Arrows/WASD move. In the dark, guards only spot you up close. Hide in alcoves and let them walk past.",
+		"brief": "OmniBulb Corp is up to something bright. Start small: learn the guard rota.",
+		"tip": "Arrows/WASD move. In the dark, guards only spot you up close. Step back into dark doorways and let them walk past.",
+		"objective": {"kind": "docs", "text": "Grab the guard rota", "done": "Rota acquired. Mondays look quiet."},
 		"ammo": 0,
 		"map": [
 			"########################################",
@@ -37,7 +39,7 @@ const LEVELS := [
 			"##################################H#####",
 			"#.................................H....#",
 			"#.................................H....#",
-			"#.P..........O....................H....#",
+			"#.P..........O....................H..I.#",
 			"########################################",
 		],
 		"guards": [
@@ -51,13 +53,14 @@ const LEVELS := [
 	{
 		"code": "OP-02",
 		"name": "Pools of Light",
-		"brief": "Somebody left the lights on. Light is how they see you.",
-		"tip": "Watch the LIGHT meter. Guards see you from far away in the light. A lit alcove hides nobody.",
+		"brief": "Their offices never switch a light off. Get the floor plans.",
+		"tip": "Watch the LIGHT meter. Guards see you from far away in the light. A lit doorway hides nobody.",
+		"objective": {"kind": "hack", "text": "Copy the floor plans", "done": "Floor plans copied."},
 		"ammo": 0,
 		"map": [
 			"########################################",
 			"#.......L..............L...............#",
-			"#.X..O..........O......................#",
+			"#.X..O..........O.......I..............#",
 			"###################################H####",
 			"#......L..............L............H...#",
 			"#..................................H...#",
@@ -76,13 +79,14 @@ const LEVELS := [
 	{
 		"code": "OP-03",
 		"name": "Energy Audit",
-		"brief": "This guard never blinks. Lights cost money. Save some.",
+		"brief": "Accounts keeps the evidence. And the electricity bill.",
 		"tip": "F shoots the nearest lamp (limited ammo). Breaking glass is loud up close. Dark tiles stay dark.",
+		"objective": {"kind": "photo", "text": "Photograph the electricity bill", "done": "Photographed. It has eleven digits."},
 		"ammo": 3,
 		"map": [
 			"########################################",
 			"#..............................L.......#",
-			"#....................................X.#",
+			"#................................I...X.#",
 			"##########################H#############",
 			"#.................L.....L.H....#.......#",
 			"#.........................H....#.......#",
@@ -101,8 +105,9 @@ const LEVELS := [
 	{
 		"code": "OP-04",
 		"name": "Squeaky Sneakers",
-		"brief": "Three floors, one lazy security team. Some gaps need speed.",
+		"brief": "The board meets at midnight. Listen in.",
 		"tip": "Hold SHIFT to run. Running is twice as fast, but guards within 4 tiles hear it.",
+		"objective": {"kind": "bug", "text": "Bug the boardroom phone", "done": "Bug planted. Now we listen."},
 		"ammo": 0,
 		"map": [
 			"########################################",
@@ -111,7 +116,7 @@ const LEVELS := [
 			"#################################H######",
 			"#.............................L..H.....#",
 			"#................................H.....#",
-			"#................................H.....#",
+			"#...I............................H.....#",
 			"###################H####################",
 			"#..............L...HL......#...........#",
 			"#..................H.......#...........#",
@@ -131,8 +136,9 @@ const LEVELS := [
 	{
 		"code": "OP-05",
 		"name": "Vent Diagram",
-		"brief": "Nobody ever checks the vents. Nobody.",
+		"brief": "R&D built a bulb that never burns out. Steal it.",
 		"tip": "Press UP under a vent to climb in, DOWN to drop out. Guards never check the vents.",
+		"objective": {"kind": "item", "text": "Steal the prototype bulb", "done": "Got the bulb. It's still warm."},
 		"ammo": 0,
 		"map": [
 			"########################################",
@@ -141,7 +147,7 @@ const LEVELS := [
 			"#####################################H##",
 			"#...................L...........L....H.#",
 			"#.............==============.========H.#",
-			"#.P..................................H.#",
+			"#.P..................................HI#",
 			"########################################",
 		],
 		"guards": [
@@ -156,8 +162,9 @@ const LEVELS := [
 	{
 		"code": "OP-06",
 		"name": "Lights Out, Lads",
-		"brief": "A guard is staring at the only way through. Give him a nap.",
+		"brief": "Security keeps a list of 'agents of darkness'. Check it.",
 		"tip": "E knocks out a guard from behind. Doors block sight. Other guards panic if they see a body.",
+		"objective": {"kind": "hack", "text": "Hack the security terminal", "done": "You're on their list. Spelled wrong."},
 		"ammo": 0,
 		"map": [
 			"########################################",
@@ -166,7 +173,7 @@ const LEVELS := [
 			"#############################H##########",
 			"#...........#.......L.....#..H..L......#",
 			"#...........#.............#..H.........#",
-			"#.P.........D.............D..H.........#",
+			"#.P.........D.............D..H.......I.#",
 			"########################################",
 		],
 		"guards": [
@@ -182,8 +189,9 @@ const LEVELS := [
 	{
 		"code": "OP-07",
 		"name": "Smile, You're on Camera",
-		"brief": "Cameras never get tired. They do need the lights on.",
+		"brief": "Cameras caught you last night. Wipe the footage.",
 		"tip": "Cameras sweep and see in light only. Shoot their lamp and they're blind.",
+		"objective": {"kind": "hack", "text": "Wipe the camera footage", "done": "Footage wiped. You were never here."},
 		"ammo": 1,
 		"map": [
 			"########################################",
@@ -192,7 +200,7 @@ const LEVELS := [
 			"####################################H###",
 			"#..........L.......L................H..#",
 			"#...................................H..#",
-			"#.P.....................O...........H..#",
+			"#.P...............I.....O...........H..#",
 			"########################################",
 		],
 		"guards": [
@@ -208,8 +216,9 @@ const LEVELS := [
 	{
 		"code": "OP-08",
 		"name": "Invisible Red Tape",
-		"brief": "The lasers here are invisible. Your goggles are not.",
+		"brief": "The lab hides the master plan behind invisible lasers.",
 		"tip": "N toggles night vision: it shows lasers. Touching a live laser trips the alarm instantly.",
+		"objective": {"kind": "photo", "text": "Photograph the master plan", "done": "Got it: 'Project Eternal Daylight'."},
 		"ammo": 0,
 		"map": [
 			"########################################",
@@ -218,7 +227,7 @@ const LEVELS := [
 			"##############################H#########",
 			"#.....................L.......H........#",
 			"#.......=======...............H........#",
-			"#.P..............O............H........#",
+			"#.P..............O............H......I.#",
 			"########################################",
 		],
 		"guards": [
@@ -237,13 +246,14 @@ const LEVELS := [
 	{
 		"code": "OP-09",
 		"name": "Access Denied",
-		"brief": "The roof is behind a locked door. The card is in the break room.",
+		"brief": "The CEO never switches off her desk lamp. Perfect place for a bug.",
 		"tip": "Grab the keycard to open red doors.",
+		"objective": {"kind": "bug", "text": "Bug the CEO's desk lamp", "done": "Bug planted. A bright idea."},
 		"ammo": 2,
 		"map": [
 			"########################################",
 			"#.....................L................#",
-			"#...............................O....X.#",
+			"#....................I..........O....X.#",
 			"###H######################H#############",
 			"#..H...........L....#.....H...L........#",
 			"#..H................#.....H............#",
@@ -267,8 +277,9 @@ const LEVELS := [
 	{
 		"code": "OP-10",
 		"name": "Grid Down",
-		"brief": "Final shift. They brought flashlights. Rude.",
-		"tip": "Flashlight guards light up whatever they look at, alcoves included. Use everything you've learned.",
+		"brief": "Final shift. Pull the plug on Project Eternal Daylight.",
+		"tip": "Flashlight guards light up whatever they look at, doorways included. Use everything you've learned.",
+		"objective": {"kind": "switch", "text": "Flip the master switch", "done": "BLACKOUT. Now get out."},
 		"ammo": 2,
 		"map": [
 			"########################################",
@@ -277,7 +288,7 @@ const LEVELS := [
 			"#####################################H##",
 			"#.................L...........#...L..H.#",
 			"#............================.#......H.#",
-			"#...........K.................D......H.#",
+			"#...........K.................D......HI#",
 			"######################H#################",
 			"#.............L.......H................#",
 			"#.........=========...H................#",

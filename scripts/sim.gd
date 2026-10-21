@@ -43,13 +43,15 @@ var action := {}            # {} when idle, else {type, from, to, total, elapsed
 var mask := 0               # bit i set = lamp i shot out
 var ammo := 0
 var has_key := false
+var objective_done := false   # true from the start when the mission has none
 var detection := 0.0
 var outcome := ""           # "", "complete" or "caught"
 var caught_by := ""
 var spotted := false        # the meter ever rose above zero
 var kos := 0
 var noises_heard := 0
-var events: Array[String] = []   # what happened this tick, for sounds and logs
+var events: Array[String] = []
+var _told_locked := false   # what happened this tick, for sounds and logs
 
 # Per guard: {lt: own clock, ko: bool, stare: ticks left, look: facing override, seeing: bool}
 var guard_state: Array[Dictionary] = []
@@ -59,6 +61,7 @@ func setup(level_world) -> void:
 	world = level_world
 	tile = world.start
 	ammo = world.ammo
+	objective_done = world.objective_tile.x < 0
 	for g in world.guards:
 		guard_state.append({"lt": g["phase"], "ko": false, "stare": 0, "look": 0, "seeing": false})
 
@@ -81,7 +84,7 @@ func visual_pos() -> Vector2:
 
 ## The tile that counts for being seen: the start of a move until halfway.
 func occupied() -> Vector2i:
-	if action.is_empty() or action["type"] in ["shoot", "takedown", "wait"]:
+	if action.is_empty() or action["type"] in ["shoot", "takedown", "wait", "interact"]:
 		return tile
 	if action["elapsed"] * 2 < action["total"]:
 		return action["from"]
@@ -117,8 +120,14 @@ func step(input: Dictionary) -> void:
 	_advance_guards()
 	_detect()
 	if outcome == "" and action.is_empty() and tile == world.exit:
-		outcome = "complete"
-		events.append("complete")
+		if objective_done:
+			outcome = "complete"
+			events.append("complete")
+		elif not _told_locked:
+			_told_locked = true
+			events.append("exit_locked")
+	if tile != world.exit:
+		_told_locked = false
 
 
 # --- player -----------------------------------------------------------------
@@ -139,6 +148,12 @@ func _finish_action() -> void:
 	match a["type"]:
 		"grab":
 			hanging = true
+		"interact":
+			objective_done = true
+			events.append("objective")
+			if world.objective_blackout():
+				mask = world.all_lamps_mask()
+				events.append("blackout")
 		"run":
 			_make_noise(Vector2(tile) + Vector2(0.5, 0.5), World.RUN_NOISE)
 		"shoot":
@@ -175,6 +190,11 @@ func _choose_action(input: Dictionary) -> void:
 				events.append("shot")
 				return
 		events.append("click")   # out of ammo or nothing to shoot
+	# E is "use": the objective if you're standing at it, else a takedown.
+	if (input.get("interact", false) or input.get("takedown", false)) and can_interact():
+		_start("interact", tile, world.objective_ticks())
+		events.append("interact")
+		return
 	if input.get("takedown", false):
 		var g := takedown_target()
 		if g >= 0:
@@ -237,6 +257,10 @@ func try_side(dx: int, run: bool) -> bool:
 	else:
 		_start("sneak", to, SNEAK)
 	return true
+
+
+func can_interact() -> bool:
+	return not objective_done and not hanging and tile == world.objective_tile
 
 
 ## A guard you can knock out: right next to you, on your row, facing away.

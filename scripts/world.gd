@@ -25,6 +25,21 @@ const DIM_AMOUNT := 0.15
 const SHOOT_RANGE := 9.0
 const RUN_NOISE := 4.0             # guards within this many tiles hear you run
 const SHATTER_NOISE := 3.0         # ...or hear a lamp break
+# Ticks the objective takes, standing still at it (multiples of 6).
+const OBJECTIVE_TICKS := {"hack": 60, "photo": 30, "bug": 48, "docs": 30, "item": 30, "switch": 30}
+
+
+func objective_ticks() -> int:
+	return OBJECTIVE_TICKS.get(objective.get("kind", "hack"), 60)
+
+
+## The master switch (mission 10) puts out every lamp at once.
+func objective_blackout() -> bool:
+	return objective.get("kind", "") == "switch"
+
+
+func all_lamps_mask() -> int:
+	return (1 << lamps.size()) - 1
 
 var name := ""
 var code := ""
@@ -36,6 +51,8 @@ var rows: Array[String] = []
 var start := Vector2i.ZERO
 var exit := Vector2i(-1, -1)
 var keycard := Vector2i(-1, -1)
+var objective_tile := Vector2i(-1, -1)   # the I tile; none = exit always open
+var objective := {}   # {kind, text, done}: what the mission is for
 var ammo := 0
 var lamps: Array[Vector2i] = []
 var guards: Array[Dictionary] = []
@@ -63,7 +80,9 @@ func setup(level: Dictionary) -> void:
 				"P": start = Vector2i(x, y)
 				"X": exit = Vector2i(x, y)
 				"K": keycard = Vector2i(x, y)
+				"I": objective_tile = Vector2i(x, y)
 				"L": lamps.append(Vector2i(x, y))
+	objective = level.get("objective", {})
 	for g in level.get("guards", []):
 		guards.append(_make_guard(g))
 	for c in level.get("cameras", []):

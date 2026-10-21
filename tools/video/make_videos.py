@@ -53,6 +53,8 @@ EVENT_SOUNDS = {
     "caught": [("alarm", 0.7)],
     "complete": [("ding", 0.7)],
     "nv_on": [("nv_on", 0.9)],
+    "objective": [("key", 0.9), ("ding", 0.5)],
+    "blackout": [("lights_out", 1.0)],
 }
 
 BASE_TAGS = ["dimmer switch", "indie game", "stealth game", "free game", "godot", "gamedev",

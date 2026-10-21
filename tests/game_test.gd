@@ -34,6 +34,7 @@ func _init() -> void:
 	test_takedown()
 	test_laser()
 	test_keycard()
+	test_objective()
 	test_danger_grid_matches()
 	print("GAME OK" if fails == 0 else "FAIL: %d checks failed" % fails)
 	quit(0 if fails == 0 else 1)
@@ -174,6 +175,25 @@ func test_keycard() -> void:
 	sim.has_key = true
 	_run(sim, {"dir": Vector2i.RIGHT}, 60)
 	check(sim.tile.x > 5, "keycard opens it")
+
+
+func test_objective() -> void:
+	var map := CORRIDOR.duplicate()
+	map[4] = "#.P.I..X...........#"
+	var w := make(map, {"objective": {"kind": "switch", "text": "Flip it"}})
+	var sim := Sim.new()
+	sim.setup(w)
+	sim.tile = w.exit
+	_run(sim, {}, 5)
+	check(sim.outcome == "" and "exit_locked" not in sim.events, "exit stays locked before the objective")
+	sim.tile = w.objective_tile
+	_run(sim, {"interact": true}, 1)
+	_run(sim, {}, w.objective_ticks() + 1)
+	check(sim.objective_done, "standing at the objective and pressing E completes it")
+	check(sim.mask == w.all_lamps_mask(), "the master switch blacks out every lamp")
+	sim.tile = w.exit
+	_run(sim, {}, 2)
+	check(sim.outcome == "complete", "exit opens after the objective")
 
 
 ## The autopilot's precomputed grid must agree with world.danger() exactly,

@@ -19,7 +19,7 @@ A side-view light-and-shadow stealth game. You are a spy in tri-lens night-visio
 | Move / climb / enter vent / drop | WASD or arrow keys |
 | Run | Shift |
 | Shoot nearest lamp | F |
-| Takedown | E |
+| Use objective / takedown | E |
 | Night vision | N |
 | Restart / pause | R / Esc |
 

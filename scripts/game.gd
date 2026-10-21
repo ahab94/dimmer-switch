@@ -109,8 +109,7 @@ func _ready() -> void:
 		if a.begins_with("--level="):
 			forced = int(a.get_slice("=", 1))
 	if forced >= 0:
-		load_level(clampi(forced, 0, Levels.LEVELS.size() - 1))
-		state = State.PLAYING
+		load_level(clampi(forced, 0, Levels.LEVELS.size() - 1))   # shows the briefing unless a bot plays
 	else:
 		state = State.MENU
 	if screenshot_path != "":
@@ -288,6 +287,15 @@ func _handle_events() -> void:
 			"heard":
 				_toast = "Huh? What was that?"
 				_toast_timer = 1.2
+			"objective":
+				_toast = str(world.objective.get("done", "Done."))
+				_toast_timer = 2.4
+			"blackout":
+				_flash = 0.9
+				_shake = 0.6
+			"exit_locked":
+				_toast = "Not yet: " + str(world.objective.get("text", "finish the objective")) + "."
+				_toast_timer = 1.8
 
 
 func _last_shot_lamp() -> int:
@@ -534,15 +542,80 @@ func _draw_tiles() -> void:
 						if ch == "R":
 							draw_rect(Rect2(r.position + Vector2(12, 10), Vector2(8, 7)), _c(Color(1, 0.9, 0.5)))
 				"X":
+					# Locked (grey, red light) until the objective is done.
+					var open_exit: bool = sim.objective_done
+					var ec: Color = C_EXIT if open_exit else Color(0.45, 0.48, 0.52)
 					var glow := 0.6 + 0.4 * sin(_anim * 3.0)
-					draw_rect(Rect2(r.position + Vector2(4, 2), Vector2(T - 8, T - 2)), _c(Color(C_EXIT, 0.18 * glow)))
-					draw_rect(Rect2(r.position + Vector2(4, 2), Vector2(T - 8, T - 2)), _c(C_EXIT), false, 2.0)
-					_text(r.position + Vector2(T / 2.0, -6), "EXIT", 12, _c(C_EXIT), HORIZONTAL_ALIGNMENT_CENTER)
+					draw_rect(Rect2(r.position + Vector2(4, 2), Vector2(T - 8, T - 2)), _c(Color(ec, (0.18 * glow) if open_exit else 0.08)))
+					draw_rect(Rect2(r.position + Vector2(4, 2), Vector2(T - 8, T - 2)), _c(ec), false, 2.0)
+					_text(r.position + Vector2(T / 2.0, -6), "EXIT" if open_exit else "LOCKED", 12, _c(ec), HORIZONTAL_ALIGNMENT_CENTER)
+					if not open_exit:
+						draw_circle(r.position + Vector2(T / 2.0, 8), 2.5, Color(1, 0.2, 0.2, 0.6 + 0.4 * sin(_anim * 5.0)))
+				"I":
+					_draw_objective(r, amt)
 				"K":
 					if not sim.has_key:
 						var bob := sin(_anim * 4.0) * 3.0
 						draw_rect(Rect2(r.position + Vector2(9, 12 + bob), Vector2(14, 10)), _c(C_KEY))
 						draw_rect(Rect2(r.position + Vector2(11, 15 + bob), Vector2(5, 2)), _c(Color(0.05, 0.2, 0.3)))
+
+
+## The thing the mission is for, drawn by kind, with a pulsing marker
+## until it's done.
+func _draw_objective(r: Rect2, amt: float) -> void:
+	var kind: String = world.objective.get("kind", "hack")
+	var done: bool = sim.objective_done
+	var fl := r.end.y
+	var cx := r.position.x + T / 2.0
+	var wood := _c(Color(0.32, 0.24, 0.17).lerp(Color(0.6, 0.45, 0.3), amt))
+	var busy: bool = sim.action.get("type", "") == "interact"
+	if kind in ["hack", "bug", "docs"]:
+		draw_rect(Rect2(cx - 14, fl - 14, 28, 4), wood)               # desk top
+		draw_rect(Rect2(cx - 12, fl - 10, 3, 10), wood.darkened(0.2))
+		draw_rect(Rect2(cx + 9, fl - 10, 3, 10), wood.darkened(0.2))
+	match kind:
+		"hack":
+			draw_rect(Rect2(cx - 9, fl - 29, 18, 13), _c(Color(0.15, 0.16, 0.18)))
+			var scr := Color(0.3, 1.0, 0.5) if done else Color(0.3, 0.75, 1.0)
+			draw_rect(Rect2(cx - 7, fl - 27, 14, 9), _c(Color(scr, 0.8)))
+			if busy:
+				for k in 3:
+					var wl := fposmod(_anim * 40.0 + k * 5.0, 12.0)
+					draw_rect(Rect2(cx - 6, fl - 26 + k * 3, wl, 1), _c(Color(0.05, 0.1, 0.15)))
+			draw_rect(Rect2(cx - 2, fl - 16, 4, 2), _c(Color(0.15, 0.16, 0.18)))
+		"bug":
+			draw_rect(Rect2(cx - 6, fl - 19, 12, 5), _c(Color(0.12, 0.12, 0.13)))   # phone
+			draw_rect(Rect2(cx - 8, fl - 22, 16, 3), _c(Color(0.18, 0.18, 0.2)))    # handset
+			if done:
+				draw_circle(Vector2(cx + 5, fl - 15), 1.5, Color(1, 0.2, 0.2, 0.5 + 0.5 * sin(_anim * 6.0)))
+		"docs":
+			if not done:
+				draw_rect(Rect2(cx - 8, fl - 17, 16, 3), _c(Color(0.95, 0.8, 0.3)))   # folder
+		"photo":
+			var board := Rect2(cx - 13, fl - 48, 26, 18)
+			draw_rect(board, _c(Color(0.15, 0.3, 0.6).lerp(Color(0.35, 0.5, 0.8), amt)))
+			for k in 3:
+				draw_line(board.position + Vector2(3, 4 + k * 5), board.position + Vector2(23 - k * 5, 4 + k * 5), _c(Color(0.85, 0.9, 1.0)), 1.0)
+			draw_rect(board, _c(Color(0.75, 0.75, 0.8)), false, 1.5)
+			if busy and fmod(_anim, 0.5) < 0.08:
+				draw_rect(Rect2(board.position - Vector2(6, 6), board.size + Vector2(12, 12)), Color(1, 1, 1, 0.6))
+		"item":
+			draw_rect(Rect2(cx - 7, fl - 14, 14, 14), _c(Color(0.35, 0.37, 0.42)))   # pedestal
+			draw_rect(Rect2(cx - 8, fl - 30, 16, 16), _c(Color(0.7, 0.85, 1.0, 0.25)))
+			draw_rect(Rect2(cx - 8, fl - 30, 16, 16), _c(Color(0.7, 0.85, 1.0, 0.7)), false, 1.0)
+			if not done:
+				draw_circle(Vector2(cx, fl - 22), 4.0, Color(1, 0.95, 0.6, 0.9))
+				draw_circle(Vector2(cx, fl - 22), 8.0, Color(1, 0.95, 0.6, 0.2 + 0.1 * sin(_anim * 4.0)))
+		"switch":
+			draw_rect(Rect2(cx - 11, fl - 46, 22, 30), _c(Color(0.35, 0.36, 0.3)))
+			draw_rect(Rect2(cx - 11, fl - 46, 22, 30), _c(Color(0.95, 0.75, 0.1)), false, 1.5)
+			var lever_end := Vector2(cx, fl - 22) if done else Vector2(cx, fl - 42)
+			draw_line(Vector2(cx, fl - 32), lever_end, _c(Color(0.75, 0.75, 0.78)), 3.0)
+			draw_circle(lever_end, 3.0, _c(Color(0.85, 0.15, 0.15)))
+	if not done and not busy:
+		var bob := sin(_anim * 4.0) * 3.0
+		var my := fl - 62 + bob
+		draw_colored_polygon(PackedVector2Array([Vector2(cx, my - 6), Vector2(cx + 5, my), Vector2(cx, my + 6), Vector2(cx - 5, my)]), C_WARN)
 
 
 ## An air duct runs high in the corridor, above the guards' caps. Its
@@ -796,6 +869,9 @@ func _draw_player() -> void:
 		aim = origin + Vector2(world.lamps[a.get("lamp", 0)]) * T + Vector2(T / 2.0, 13)
 	elif type == "takedown":
 		pose = "takedown"
+	elif type == "interact":
+		pose = "use"
+		phase = _anim
 	if pose == "hide":
 		# Pressed into the shadows: drawn darker, only the goggles glow.
 		figures.tint = func(c: Color) -> Color: return _c(c.darkened(0.5))
@@ -809,6 +885,10 @@ func _draw_player() -> void:
 		draw_rect(Rect2(r.position.x, r.end.y - 58, T, 4), frame)
 		return
 	figures.agent(foot, sim.face, pose, phase, night_vision, aim, rim)
+	if type == "interact":
+		var bar := Rect2(foot + Vector2(-20, -66), Vector2(40, 5))
+		draw_rect(bar, Color(0.1, 0.1, 0.12, 0.9))
+		draw_rect(Rect2(bar.position, Vector2(bar.size.x * prog, bar.size.y)), C_WARN)
 
 
 func _draw_nv_overlay() -> void:
@@ -883,6 +963,17 @@ func _draw_hud() -> void:
 		_text(Vector2(screen.x / 2.0, HUD_H + 30), _toast, 20, Color(C_TEXT, a), HORIZONTAL_ALIGNMENT_CENTER)
 	if autopilot and not clean:
 		_text(Vector2(screen.x - 20, 22), "AUTOPILOT", 12, C_GOGGLE, HORIZONTAL_ALIGNMENT_RIGHT)
+	_draw_objective_line(Vector2(20, HUD_H + 22))
+
+
+## "OBJECTIVE: ..." until it's done, then "EXTRACT".
+func _draw_objective_line(at: Vector2) -> void:
+	if world.objective.is_empty():
+		return
+	if sim.objective_done:
+		_text(at, "EXTRACT  Get to the exit", 16, C_EXIT)
+	else:
+		_text(at, "OBJECTIVE  " + str(world.objective.get("text", "")), 16, C_WARN)
 
 
 ## Phones and Shorts: two compact rows on top. Toasts sit just above the
@@ -908,6 +999,7 @@ func _draw_hud_portrait() -> void:
 		draw_rect(Rect2(dx, 52, dw * det, 34), C_WARN.lerp(C_ALERT, det))
 	draw_rect(Rect2(dx, 52, dw, 34), Color(0.35, 0.38, 0.45), false, 1.5)
 	_text(Vector2(dx + dw / 2.0, 75), "HIDDEN" if world.cell(sim.occupied()) == "O" and lvl <= World.DIM else "DETECTION", 15, C_GOGGLE if world.cell(sim.occupied()) == "O" and lvl <= World.DIM else C_DIM_TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	_draw_objective_line(Vector2(18, 132))
 	if _toast_timer > 0.0:
 		var a := clampf(_toast_timer * 2.0, 0.0, 1.0)
 		var top: float = _wx.origin.y - 40.0
@@ -928,8 +1020,23 @@ func _draw_panel(title: String, lines: Array, col: Color) -> void:
 		_text(Vector2(screen.x / 2.0, r.position.y + 105 + k * 30), lines[k], 19, C_TEXT, HORIZONTAL_ALIGNMENT_CENTER)
 
 
+## A small briefing card: who, why, and the one thing to do.
 func _draw_brief() -> void:
-	_draw_panel("%s  %s" % [world.code, world.name], [world.brief, "", world.tip, "", "ENTER to start    ESC for missions"], C_GOGGLE)
+	draw_rect(Rect2(Vector2.ZERO, screen), Color(0, 0, 0, 0.45))
+	var w := minf(600.0, screen.x - 30.0)
+	var r := Rect2(screen.x / 2.0 - w / 2.0, screen.y / 2.0 - 120, w, 240)
+	draw_rect(r, Color(0.03, 0.045, 0.07, 0.97))
+	draw_rect(Rect2(r.position, Vector2(4, r.size.y)), C_GOGGLE)
+	draw_rect(r, Color(C_GOGGLE, 0.6), false, 1.5)
+	var x := r.position.x + 26
+	_text(Vector2(x, r.position.y + 30), "MISSION BRIEFING  //  THIRD SHIFT", 13, C_GOGGLE)
+	_text(Vector2(x, r.position.y + 64), "%s  %s" % [world.code, world.name], 26, C_TEXT)
+	_text(Vector2(x, r.position.y + 98), world.brief, 16, C_DIM_TEXT, HORIZONTAL_ALIGNMENT_LEFT, w - 50)
+	if not world.objective.is_empty():
+		_text(Vector2(x, r.position.y + 140), "OBJECTIVE", 13, C_WARN)
+		_text(Vector2(x, r.position.y + 164), str(world.objective.get("text", "")), 20, C_TEXT)
+		_text(Vector2(x, r.position.y + 188), "then reach the EXIT", 14, C_DIM_TEXT)
+	_text(Vector2(r.end.x - 20, r.end.y - 16), "ENTER", 14, C_GOGGLE, HORIZONTAL_ALIGNMENT_RIGHT)
 
 
 func _draw_caught() -> void:
@@ -951,6 +1058,7 @@ func _draw_complete() -> void:
 	var lines := [
 		"Time  %.1f s%s" % [secs, "   NEW BEST" if _new_best and save_enabled else ""],
 		"Rating  %s" % sim.rating(),
+		"Done: " + str(world.objective.get("text", "")) if not world.objective.is_empty() else "",
 		"Lamps shot %d  (%d W saved)   Takedowns %d" % [shots, shots * WATTS_PER_LAMP, sim.kos],
 		"",
 		"ENTER next mission    R replay    ESC missions" if level_index + 1 < Levels.LEVELS.size() else "Every shift done. ENTER for missions.",
@@ -987,4 +1095,4 @@ func _draw_menu() -> void:
 		var key := str(i)
 		if best_times.has(key):
 			_text(r.position + Vector2(584, 23), "%s  %.1f s" % [best_ratings.get(key, ""), best_times[key]], 15, C_DIM_TEXT, HORIZONTAL_ALIGNMENT_RIGHT)
-	_text(Vector2(screen.x / 2.0, screen.y - 40), "UP/DOWN choose   ENTER play   |   move WASD/arrows   SHIFT run   F shoot lamp   E takedown   N night vision", 15, C_DIM_TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	_text(Vector2(screen.x / 2.0, screen.y - 40), "UP/DOWN choose   ENTER play   |   move WASD/arrows   SHIFT run   F shoot lamp   E use / takedown   N night vision", 15, C_DIM_TEXT, HORIZONTAL_ALIGNMENT_CENTER)

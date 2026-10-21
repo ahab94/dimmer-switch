@@ -194,6 +194,10 @@ func agent(foot: Vector2, fwd: float, pose: String, phase: float, nv: bool, aim 
 		"shoot", "takedown":
 			hip_h = 19.5
 			lean = 0.18
+		"use":
+			hip_h = 21.0
+			lean = 0.2
+			cyc = 0.0
 	var hip := foot + Vector2(0, -hip_h)
 	var neck := hip + Vector2(sin(lean) * fwd, -cos(lean)) * 15.0
 	var head := neck + Vector2(sin(lean) * fwd * 4.0, -7.0)
@@ -215,6 +219,11 @@ func agent(foot: Vector2, fwd: float, pose: String, phase: float, nv: bool, aim 
 	elif pose == "fall":
 		back_hand = shoulder + Vector2(-9 * fwd, -8)
 		front_hand = shoulder + Vector2(8 * fwd, -9)
+	elif pose == "use":
+		# Working on the objective: hands out in front, busy.
+		var jig := sin(phase * 22.0) * 1.2
+		front_hand = shoulder + Vector2(10.0 * fwd, 3.0 + jig)
+		back_hand = shoulder + Vector2(8.0 * fwd, 5.0 - jig)
 	elif pose == "takedown":
 		var reach := sin(phase * PI)
 		front_hand = shoulder + Vector2((9.0 + reach * 6.0) * fwd, 2.0 - reach * 4.0)
