@@ -1,6 +1,6 @@
 # Dimmer Switch — notes for Claude
 
-Side-view 2D light-and-shadow stealth game in Godot 4.7 (GDScript): a spy in tri-lens goggles sneaks through 10 night-time office towers. Light is the enemy: guards see far in light and only up close in the dark. Working title; the user approves names. README.md holds the roadmap.
+Side-view 2D light-and-shadow stealth game in Godot 4.7 (GDScript): a spy in tri-lens goggles sneaks through 10 night-time office towers. Light is the enemy: guards see far in light and only up close in the dark. Name approved 2026-10-21. Public repo https://github.com/ahab94/dimmer-switch, browser build at https://ahab94.github.io/dimmer-switch/. README.md holds the roadmap.
 
 ## Run and check
 - Play: `godot --path .` (or open in the editor and press F5).
@@ -15,6 +15,8 @@ Side-view 2D light-and-shadow stealth game in Godot 4.7 (GDScript): a spy in tri
 - `scripts/sim.gd`: one tick of play. Tile-stepped player actions with fixed tick costs (sneak 12, run 6, ...), detection meter, noise, takedowns, keycard. `wants_input()` tells drivers when the next input is read.
 - `scripts/autopilot.gd`: A* over (tile, hanging, lamps shot, key, knockouts, time mod period). Plans takedowns only on stationary guards.
 - `scripts/figures.gd`: the agent and guards as IK-jointed figures drawn in two passes (outline, then fill). Poses: sneak, run, climb, hang, shoot, takedown, fall.
+- `scripts/touch_controls.gd`: phone controls (d-pad joystick, full push = run; USE/SHOOT/NV buttons; pause). They press the same input actions as the keys; the left mouse button acts as a finger too. On by `DisplayServer.is_touchscreen_available()` or `--touch`. `game._fit_layout()` picks a 720-wide portrait or 720-tall landscape layout from the device shape and reruns on rotation.
+- Release: pushing a `v*` tag runs `.github/workflows/release.yml` (checks, export Windows/macOS/Linux/Web, GitHub Release with zips, deploy Pages). Write `docs/releases/<tag>.md` first. `install.sh` / `install.ps1` install the latest release. Web needs WebGL 2; `tools/web/no_webgl2.html` is the help screen (apply with `python3 tools/web/apply_head_include.py`).
 - `scripts/game.gd`: input, zoomed follow camera (`zoom`, `cam_x`, `_wx`), drawing, HUD, menus, saves (`user://progress.cfg`), dev flags.
 
 ## Conventions

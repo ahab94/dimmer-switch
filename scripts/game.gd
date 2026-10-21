@@ -12,6 +12,7 @@ const World := preload("res://scripts/world.gd")
 const Sim := preload("res://scripts/sim.gd")
 const Autopilot := preload("res://scripts/autopilot.gd")
 const Figures := preload("res://scripts/figures.gd")
+const TouchControls := preload("res://scripts/touch_controls.gd")
 
 const T := World.TILE
 const HUD_H := 70.0
@@ -62,6 +63,9 @@ var save_enabled := true
 var menu_cursor := 0
 var font: Font
 var figures   # scripts/figures.gd: draws the agent and the guards
+var touch := false   # on-screen controls (phones, tablets; --touch to test with a mouse)
+var _touch = null    # scripts/touch_controls.gd when touch is on
+var _menu_rows: Array[Rect2] = []   # where each mission row was drawn, for taps
 
 # Buffered presses: a tap during a move still happens when the move ends.
 var _want_shoot := false
@@ -97,12 +101,19 @@ var _wall_time := 0.0
 
 
 func _ready() -> void:
-	screen = get_viewport().get_visible_rect().size
-	portrait = screen.y > screen.x
 	font = ThemeDB.fallback_font
 	figures = Figures.new(self, _c)
 	_setup_input()
 	_parse_flags()
+	touch = DisplayServer.is_touchscreen_available() or "--touch" in OS.get_cmdline_user_args()
+	if "--touch" in OS.get_cmdline_user_args():
+		Input.emulate_touch_from_mouse = true   # a mouse stands in for a finger when testing
+	if touch:
+		_touch = TouchControls.new()
+		add_child(_touch)   # a child draws after (on top of) this node
+		_touch.tapped.connect(_on_tap)
+		get_window().size_changed.connect(_fit_layout)
+	_fit_layout()
 	_load_progress()
 	var forced := -1
 	for a in OS.get_cmdline_user_args():
@@ -114,6 +125,54 @@ func _ready() -> void:
 		state = State.MENU
 	if screenshot_path != "":
 		_take_screenshot_later()
+
+
+## Picks the layout size. On desktop it's the project's 1280x720 (or what
+## override.cfg says, for video recording). On a touch screen it follows the
+## device's shape: upright phones get a 720-wide portrait layout, sideways
+## ones a 720-tall landscape one, stretched to the real screen with no bars.
+## Runs again when the phone rotates.
+func _fit_layout() -> void:
+	if touch:
+		var win := DisplayServer.window_get_size()
+		if win.x > 0 and win.y > 0:
+			var size: Vector2i
+			if win.y > win.x:
+				size = Vector2i(720, maxi(1280, roundi(720.0 * win.y / win.x)))
+			else:
+				size = Vector2i(maxi(1280, roundi(720.0 * win.x / win.y)), 720)
+			get_window().content_scale_size = size
+			screen = Vector2(size)
+	else:
+		screen = get_viewport().get_visible_rect().size
+	portrait = screen.y > screen.x
+	if world != null:
+		_fit_zoom()
+		cam_x = _cam_target(true)
+	if _touch:
+		var band := Rect2(0, screen.y * 0.75, screen.x, screen.y * 0.25) if portrait else Rect2(0, screen.y - 170, screen.x, 170)
+		_touch.layout(band, Vector2(screen.x - 62, HUD_H + 6) if not portrait else Vector2(screen.x - 62, 140))
+		_touch.playing = state == State.PLAYING
+
+
+## Taps outside the on-screen controls: menus and "tap to continue".
+func _on_tap(pos: Vector2) -> void:
+	match state:
+		State.MENU:
+			for i in _menu_rows.size():
+				if _menu_rows[i].has_point(pos) and i < unlocked:
+					menu_cursor = i
+					load_level(i)
+		State.BRIEF, State.PAUSED:
+			state = State.PLAYING
+		State.CAUGHT:
+			load_level(level_index)
+			state = State.PLAYING
+		State.COMPLETE:
+			if level_index + 1 < Levels.LEVELS.size():
+				load_level(level_index + 1)
+			else:
+				_to_menu()
 
 
 func _parse_flags() -> void:
@@ -166,10 +225,7 @@ func load_level(i: int) -> void:
 	sim.setup(world)
 	# Zoom in as far as the building's height allows (capped so you still see
 	# a guard's full sight line), then follow the agent sideways.
-	if portrait:
-		zoom = minf(PORTRAIT_ZOOM, (screen.y * 0.6) / (world.h * T))
-	else:
-		zoom = minf(MAX_ZOOM, (screen.y - HUD_H - 40.0) / (world.h * T))
+	_fit_zoom()
 	cam_x = _cam_target(true)
 	_want_shoot = false
 	_want_takedown = false
@@ -202,6 +258,9 @@ func _physics_process(delta: float) -> void:
 	_shards = _shards.filter(func(s): return s["life"] > 0.0)
 	if timeout > 0.0 and _wall_time > timeout and exit_on_end:
 		_report("timeout")
+	if _touch and _touch.playing != (state == State.PLAYING):
+		_touch.playing = state == State.PLAYING
+		_touch.release_all()   # never leave a finger "stuck" on a control
 	if world != null:
 		cam_x = lerpf(cam_x, _cam_target(false), clampf(delta * 4.0, 0.0, 1.0))
 	if state == State.PLAYING:
@@ -220,6 +279,14 @@ func _physics_process(delta: float) -> void:
 			if exit_on_end:
 				_report("caught")
 	queue_redraw()
+
+
+func _fit_zoom() -> void:
+	if portrait:
+		zoom = minf(PORTRAIT_ZOOM, (screen.y * (0.5 if touch else 0.6)) / (world.h * T))
+	else:
+		var band := 170.0 if touch else 40.0
+		zoom = minf(MAX_ZOOM, (screen.y - HUD_H - band) / (world.h * T))
 
 
 func _cam_target(_snap: bool) -> float:
@@ -331,7 +398,14 @@ func _report(what: String) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not (event is InputEventKey) or not event.pressed or event.echo:
+	# Mouse clicks work in menus on desktop too (touch screens route through
+	# the touch controls instead).
+	if not touch and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		if state != State.PLAYING:
+			_on_tap(event.position)
+		return
+	# Keys, and the on-screen buttons (which send InputEventAction).
+	if not (event is InputEventKey or event is InputEventAction) or not event.is_pressed() or event.is_echo():
 		return
 	match state:
 		State.MENU:
@@ -366,7 +440,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				state = State.PLAYING
 			elif event.is_action("nv"):
 				pass
-			elif event.keycode == KEY_M:
+			elif event is InputEventKey and event.keycode == KEY_M:
 				_to_menu()
 		State.CAUGHT:
 			if event.is_action("retry") or event.is_action("confirm"):
@@ -439,9 +513,10 @@ func _draw() -> void:
 		_draw_menu()
 		return
 	_sv = Vector2(randf_range(-1, 1), randf_range(-1, 1)) * _shake * 6.0
-	var ty := HUD_H + (screen.y - HUD_H - 34.0 - world.h * T * zoom) / 2.0
+	var ty := HUD_H + (screen.y - HUD_H - (170.0 if touch else 34.0) - world.h * T * zoom) / 2.0
 	if portrait:
-		ty = screen.y * 0.56 - world.h * T * zoom / 2.0   # below where Shorts captions sit
+		# Below where Shorts captions sit; higher on phones, above the controls.
+		ty = screen.y * (0.47 if touch else 0.56) - world.h * T * zoom / 2.0
 	_wx = Transform2D(0.0, Vector2(zoom, zoom), 0.0, Vector2(screen.x / 2.0 - cam_x * zoom, ty) + _sv)
 	_draw_sky(ty)
 	draw_set_transform_matrix(_wx)
@@ -467,7 +542,7 @@ func _draw() -> void:
 	_draw_hud()
 	match state:
 		State.BRIEF: _draw_brief()
-		State.PAUSED: _draw_panel("PAUSED", ["ESC / ENTER  resume", "R  restart mission", "M  mission select"], C_TEXT)
+		State.PAUSED: _draw_panel("PAUSED", ["Tap to resume"] if touch else ["ESC / ENTER  resume", "R  restart mission", "M  mission select"], C_TEXT)
 		State.CAUGHT: _draw_caught()
 		State.COMPLETE: _draw_complete()
 
@@ -953,10 +1028,10 @@ func _draw_hud() -> void:
 		_text(Vector2(kx + 80, 22), "KEY", 12, C_DIM_TEXT)
 		draw_rect(Rect2(kx + 80, 32, 22, 16), C_KEY if sim.has_key else Color(0.2, 0.2, 0.24))
 	_text(Vector2(kx + 130, 22), "GOGGLES", 12, C_DIM_TEXT)
-	_text(Vector2(kx + 130, 50), "NV ON" if night_vision else "off  [N]", 16, C_GOGGLE if night_vision else C_DIM_TEXT)
+	_text(Vector2(kx + 130, 50), "NV ON" if night_vision else ("off" if touch else "off  [N]"), 16, C_GOGGLE if night_vision else C_DIM_TEXT)
 	_text(Vector2(screen.x - 20, 50), "%.1f s" % (sim.tick / 60.0), 20, C_TEXT, HORIZONTAL_ALIGNMENT_RIGHT)
 	# Tip line under the map.
-	if not clean:
+	if not clean and not touch:
 		_text(Vector2(screen.x / 2.0, screen.y - 12), world.tip, 15, C_DIM_TEXT, HORIZONTAL_ALIGNMENT_CENTER)
 	if _toast_timer > 0.0:
 		var a := clampf(_toast_timer * 2.0, 0.0, 1.0)
@@ -1031,12 +1106,13 @@ func _draw_brief() -> void:
 	var x := r.position.x + 26
 	_text(Vector2(x, r.position.y + 30), "MISSION BRIEFING  //  THIRD SHIFT", 13, C_GOGGLE)
 	_text(Vector2(x, r.position.y + 64), "%s  %s" % [world.code, world.name], 26, C_TEXT)
-	_text(Vector2(x, r.position.y + 98), world.brief, 16, C_DIM_TEXT, HORIZONTAL_ALIGNMENT_LEFT, w - 50)
+	# Wraps onto a second line on narrow (phone) screens.
+	draw_multiline_string(font, Vector2(x, r.position.y + 94), world.brief, HORIZONTAL_ALIGNMENT_LEFT, w - 50, 16, 2, C_DIM_TEXT)
 	if not world.objective.is_empty():
 		_text(Vector2(x, r.position.y + 140), "OBJECTIVE", 13, C_WARN)
 		_text(Vector2(x, r.position.y + 164), str(world.objective.get("text", "")), 20, C_TEXT)
 		_text(Vector2(x, r.position.y + 188), "then reach the EXIT", 14, C_DIM_TEXT)
-	_text(Vector2(r.end.x - 20, r.end.y - 16), "ENTER", 14, C_GOGGLE, HORIZONTAL_ALIGNMENT_RIGHT)
+	_text(Vector2(r.end.x - 20, r.end.y - 16), "TAP TO START" if touch else "ENTER", 14, C_GOGGLE, HORIZONTAL_ALIGNMENT_RIGHT)
 
 
 func _draw_caught() -> void:
@@ -1049,7 +1125,7 @@ func _draw_caught() -> void:
 	if since < 0.9:
 		return
 	var said := {"spotted": "were spotted"}
-	_draw_panel("SPOTTED", ["You %s." % said.get(why, why), quip.get(why, ""), "", "R / ENTER retry    ESC missions"], C_ALERT)
+	_draw_panel("SPOTTED", ["You %s." % said.get(why, why), quip.get(why, ""), "", "Tap to retry" if touch else "R / ENTER retry    ESC missions"], C_ALERT)
 
 
 func _draw_complete() -> void:
@@ -1061,7 +1137,7 @@ func _draw_complete() -> void:
 		"Done: " + str(world.objective.get("text", "")) if not world.objective.is_empty() else "",
 		"Lamps shot %d  (%d W saved)   Takedowns %d" % [shots, shots * WATTS_PER_LAMP, sim.kos],
 		"",
-		"ENTER next mission    R replay    ESC missions" if level_index + 1 < Levels.LEVELS.size() else "Every shift done. ENTER for missions.",
+		("Tap for the next mission" if touch else "ENTER next mission    R replay    ESC missions") if level_index + 1 < Levels.LEVELS.size() else "Every shift done. Thanks for playing!",
 	]
 	_draw_panel("EXTRACTED", lines, C_EXIT)
 
@@ -1079,20 +1155,33 @@ func _draw_menu() -> void:
 	_text(Vector2(screen.x / 2.0, 110), "DIMMER SWITCH", 64, C_TEXT, HORIZONTAL_ALIGNMENT_CENTER)
 	for k in 3:
 		draw_circle(Vector2(screen.x / 2.0 - 16 + k * 16, 140 + (0 if k == 1 else 4)), 5.0, C_GOGGLE)
-	_text(Vector2(screen.x / 2.0, 180), "A light-and-shadow stealth game. Every lamp is your enemy.", 20, C_DIM_TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	if portrait:
+		_text(Vector2(screen.x / 2.0, 180), "Every lamp is your enemy.", 20, C_DIM_TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	else:
+		_text(Vector2(screen.x / 2.0, 180), "A light-and-shadow stealth game. Every lamp is your enemy.", 20, C_DIM_TEXT, HORIZONTAL_ALIGNMENT_CENTER)
 	var y0 := 230.0
 	for i in Levels.LEVELS.size():
 		var L: Dictionary = Levels.LEVELS[i]
 		var locked := i >= unlocked
 		var sel := i == menu_cursor
 		var r := Rect2(screen.x / 2.0 - 300, y0 + i * 40, 600, 34)
+		if touch and portrait:
+			r = Rect2(screen.x / 2.0 - 300, y0 + i * 64, 600, 54)          # finger-sized rows
+		elif touch:
+			r = Rect2(screen.x / 2.0 + (10 if i >= 5 else -610), y0 + (i % 5) * 70, 600, 58)   # two columns
+		if _menu_rows.size() <= i:
+			_menu_rows.append(r)
+		_menu_rows[i] = r
 		draw_rect(r, Color(0.08, 0.12, 0.1, 0.95) if sel else Color(0.04, 0.05, 0.08, 0.9))
 		if sel:
 			draw_rect(r, C_GOGGLE, false, 2.0)
 		var col := C_DIM_TEXT if locked else C_TEXT
-		_text(r.position + Vector2(16, 23), L["code"], 16, C_GOGGLE if not locked else C_DIM_TEXT)
-		_text(r.position + Vector2(100, 23), "LOCKED" if locked else L["name"], 18, col)
+		_text(r.position + Vector2(16, r.size.y / 2.0 + 6), L["code"], 16, C_GOGGLE if not locked else C_DIM_TEXT)
+		_text(r.position + Vector2(100, r.size.y / 2.0 + 6), "LOCKED" if locked else L["name"], 18, col)
 		var key := str(i)
 		if best_times.has(key):
-			_text(r.position + Vector2(584, 23), "%s  %.1f s" % [best_ratings.get(key, ""), best_times[key]], 15, C_DIM_TEXT, HORIZONTAL_ALIGNMENT_RIGHT)
+			_text(r.position + Vector2(584, r.size.y / 2.0 + 6), "%s  %.1f s" % [best_ratings.get(key, ""), best_times[key]], 15, C_DIM_TEXT, HORIZONTAL_ALIGNMENT_RIGHT)
+	if touch:
+		_text(Vector2(screen.x / 2.0, screen.y - 40), "Tap a mission to play", 18, C_DIM_TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+		return
 	_text(Vector2(screen.x / 2.0, screen.y - 40), "UP/DOWN choose   ENTER play   |   move WASD/arrows   SHIFT run   F shoot lamp   E use / takedown   N night vision", 15, C_DIM_TEXT, HORIZONTAL_ALIGNMENT_CENTER)

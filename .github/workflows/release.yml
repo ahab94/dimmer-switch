@@ -1,0 +1,133 @@
+# Builds the game for Windows, macOS, Linux and Web.
+# - Every push to main and every pull request: run the checks.
+# - A pushed tag like v0.1.0: also export all platforms, publish a GitHub
+#   Release with the zipped builds attached, and deploy the web build to Pages.
+# - Manual run (Actions tab): export and keep the builds as a workflow artifact.
+#
+# Security:
+# - The default token is read-only. Only the release job (tags only) can write,
+#   so pull-request runs never hold a write-capable token.
+# - Godot and its export templates are verified against pinned SHA-512 sums
+#   (from Godot's official SHA512-SUMS.txt) before use. When bumping
+#   GODOT_VERSION, update both sums.
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GODOT_VERSION: 4.7.2
+  GODOT_SHA512: 9aa00f7a605200940bce3027a567b782f49bd8e940dd06ae9e987bd65aee1b1467edd56ed84fcdcbdd44354bf613bdbb4e5d2913e925850368e150c59ed54c65
+  TEMPLATES_SHA512: ca4d71c4d7b81dfc15d1a98baa07534aa95b03fdda78a0075b06672e1648d2e5f40980c9adc28d23e1b92e732ee7bf3461997aa804af74ec2fcd7a93ccb84079
+  GAME: DimmerSwitch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Godot ${{ env.GODOT_VERSION }}
+        run: |
+          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+          curl -fsSL -o godot.zip "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          echo "${GODOT_SHA512}  godot.zip" | sha512sum -c -
+          unzip -q godot.zip
+          sudo mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+          godot --version
+
+      - name: Import project
+        run: godot --headless --path . --import || true
+
+      - name: Checks (tests + autopilot beats every mission)
+        run: bash checks/verify.sh
+
+      - name: Install export templates
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        run: |
+          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+          curl -fsSL -o templates.tpz "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          echo "${TEMPLATES_SHA512}  templates.tpz" | sha512sum -c -
+          dest="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$dest"
+          unzip -q templates.tpz
+          mv templates/* "$dest/"
+
+      - name: Export all platforms
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        run: |
+          version="${GITHUB_REF_NAME}"
+          [[ "$version" == v* ]] || version="dev"
+          mkdir -p build/windows build/macos build/linux build/web dist
+          godot --headless --path . --export-release "Windows" "build/windows/$GAME.exe"
+          godot --headless --path . --export-release "macOS" "build/macos/$GAME.zip"
+          godot --headless --path . --export-release "Linux" "build/linux/$GAME.x86_64"
+          godot --headless --path . --export-release "Web" "build/web/index.html"
+          chmod +x "build/linux/$GAME.x86_64"
+          (cd build/windows && zip -qr "../../dist/$GAME-$version-windows.zip" .)
+          cp "build/macos/$GAME.zip" "dist/$GAME-$version-macos.zip"
+          (cd build/linux && zip -qr "../../dist/$GAME-$version-linux.zip" .)
+          (cd build/web && zip -qr "../../dist/$GAME-$version-web.zip" .)
+          ls -la dist
+          for f in dist/*.zip; do [ -s "$f" ] || { echo "empty build: $f"; exit 1; }; done
+
+      - name: Keep builds as an artifact
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: builds
+          path: dist/*.zip
+
+      - name: Package the web build for GitHub Pages
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  # The only job that can write to the repo, and it only runs on version tags.
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: builds
+          path: dist
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes="docs/releases/${GITHUB_REF_NAME}.md"
+          [ -f "$notes" ] || notes=/dev/null
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/*.zip --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/*.zip \
+              --title "Dimmer Switch ${GITHUB_REF_NAME}" --notes-file "$notes"
+          fi
+
+  # Publishes the web build so the game is playable at https://ahab94.github.io/dimmer-switch/
+  pages:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
