@@ -66,8 +66,8 @@ VIDEOS = [
     {
         "id": "01-trailer", "orient": "landscape",
         "segments": [("l-clean-02", 0.0, 7.0, 1.3), ("l-clean-03", 0.3, 4.0, 1.0), ("l-clean-05", 1.0, 9.0, 1.5),
-                     ("l-clean-06", 0.5, 7.5, 1.4), ("l-clean-07", 2.0, 9.0, 1.4), ("l-clean-08", 1.6, 5.5, 1.0),
-                     ("l-clean-10", 4.0, 16.0, 1.6)],
+                     ("l-clean-06", 0.5, 7.5, 1.4), ("l-clean-07", 3.0, 14.6, 1.6), ("l-clean-08", 1.6, 5.8, 1.0),
+                     ("l-clean-10", 4.0, 19.0, 1.6)],
         "intro": ("EVERY LAMP\nIS YOUR ENEMY.", 2.6),
         "captions": "auto-trailer",
         "cut_whoosh": True, "caption_pop": False,
@@ -79,13 +79,13 @@ VIDEOS = [
     {
         "id": "02-i-made-a-game", "orient": "portrait",
         "segments": [("p-clean-02", 0.0, 4.5, 1.4), ("p-clean-03", 0.4, 3.6, 1.0), ("p-clean-05", 1.0, 8.0, 1.6),
-                     ("p-clean-06", 0.5, 6.0, 1.3), ("p-clean-08", 1.8, 5.0, 1.0)],
+                     ("p-clean-06", 0.5, 4.5, 1.0), ("p-clean-08", 1.8, 5.0, 1.0)],
         "captions": [
             (0.0, 3.2, "I made a stealth game\nwhere LIGHT\nis the enemy", "hook"),
             (3.2, 6.4, "so you just...\nshoot the lights", "hook"),
             (6.4, 10.8, "nobody ever\nlooks up", "hook"),
-            (10.8, 15.0, "nap time", "hook"),
-            (15.0, 18.2, "and the lasers\nare invisible", "hook"),
+            (10.8, 14.8, "nap time", "hook"),
+            (14.8, 18.0, "and the lasers\nare invisible", "hook"),
         ],
         "cut_whoosh": True,
         "title": "I made a stealth game where LIGHT is the enemy 💡 #shorts",
@@ -106,27 +106,27 @@ VIDEOS = [
     },
     {
         "id": "04-nobody-looks-up", "orient": "portrait",
-        "segments": [("p-clean-05", 0.0, 13.0, 1.3)],
+        "segments": [("p-clean-05", 0.8, 11.9, 1.3)],
         "captions": [
-            (0.0, 3.0, "Rule #1 of\nstealth games:", "hook"),
-            (3.0, 7.5, "NOBODY\never looks up", "hook"),
-            (7.5, 10.0, "not once.", "hook"),
+            (0.0, 2.5, "Rule #1 of\nstealth games:", "hook"),
+            (2.5, 6.0, "NOBODY\never looks up", "hook"),
+            (6.0, 8.5, "not once.", "hook"),
         ],
-        "sfx": [(3.0, "tiptoe"), (5.0, "tiptoe")],
+        "sfx": [(1.2, "tiptoe"), (3.8, "tiptoe")],
         "title": "Rule #1 of stealth games: nobody EVER looks up 👆 #shorts",
         "blurb": "Hang from a pipe and walk right over the guards. They never look up.",
         "tags": BASE_TAGS + ["shorts", "stealth", "game logic"],
     },
     {
         "id": "05-me-vs-guard", "orient": "portrait",
-        "segments": [("p-clumsy-02", 0.0, 5.6, 1.0), ("p-clumsy-03", 2.0, 5.5, 1.0), ("p-clumsy-05", 1.5, 5.3, 1.0)],
+        "segments": [("p-clumsy-02", 0.0, 5.6, 1.0), ("p-clumsy-03", 2.0, 6.5, 1.0), ("p-clumsy-05", 1.5, 5.3, 1.0)],
         "captions": [
-            (0.0, 2.4, "me, a trained\nspy:", "hook"),
-            (2.4, 5.6, "stealth mode:\nactivated", "hook"),
-            (5.6, 9.1, "attempt #2", "hook"),
-            (9.1, 12.9, "attempt #37", "hook"),
+            (0.0, 2.0, "me, a trained\nspy:", "hook"),
+            (2.0, 5.6, "stealth mode:\nactivated", "hook"),
+            (5.6, 10.1, "attempt #2", "hook"),
+            (10.1, 13.9, "attempt #37", "hook"),
         ],
-        "sfx": [(3.1, "record_scratch", 0.8), (12.2, "sad_trombone")],
+        "sfx": [(3.6, "record_scratch", 0.8), (12.2, "sad_trombone")],
         "outro": 2.5,
         "title": "Me trying to be a stealthy spy 🕵️ #shorts",
         "blurb": "Sneaking straight into the light is NOT how stealth works. Can you do better?",
@@ -134,25 +134,25 @@ VIDEOS = [
     },
     {
         "id": "06-invisible-lasers", "orient": "portrait",
-        "segments": [("p-reckless-08", 0.0, 3.3, 1.0), ("p-clean-08", 0.0, 7.0, 1.0)],
+        "segments": [("p-reckless-08", 0.0, 2.85, 1.0), ("p-clean-08", 0.0, 6.6, 1.0)],
         "captions": [
-            (0.0, 1.4, "this hallway\nlooks empty...", "hook"),
-            (1.6, 3.3, "IT WAS NOT", "big"),
-            (3.3, 5.8, "goggles ON", "hook"),
-            (5.8, 10.3, "oh. OH.", "hook"),
+            (0.0, 0.9, "empty hallway!", "hook"),
+            (0.9, 2.85, "IT WAS NOT", "big"),
+            (2.85, 5.45, "let's try that\nagain...", "hook"),
+            (5.45, 9.45, "goggles ON.\noh. OH.", "hook"),
         ],
-        "sfx": [(1.2, "record_scratch", 0.8)],
+        "sfx": [(0.85, "record_scratch", 0.8)],
         "title": "The lasers were INVISIBLE the whole time 😳 #shorts",
         "blurb": "In this stealth game, the lasers only show up through your night vision goggles.",
         "tags": BASE_TAGS + ["shorts", "lasers", "night vision"],
     },
     {
         "id": "07-nap-time", "orient": "portrait",
-        "segments": [("p-clean-06", 0.0, 9.0, 1.2)],
+        "segments": [("p-clean-06", 0.0, 7.0, 1.0)],
         "captions": [
-            (0.0, 2.6, "POV: you're on\nnight shift", "hook"),
-            (2.6, 5.0, "someone's behind\nyou", "hook"),
-            (5.0, 7.5, "nap time 😴", "hook"),
+            (0.0, 1.2, "POV: you're on\nnight shift", "hook"),
+            (1.2, 2.0, "someone's\nbehind you", "hook"),
+            (2.0, 4.5, "nap time", "hook"),
         ],
         "title": "POV: you're a security guard on night shift 😴 #shorts",
         "blurb": "Never turn your back in a stealth game. Takedowns only work from behind!",
@@ -160,11 +160,11 @@ VIDEOS = [
     },
     {
         "id": "08-cameras", "orient": "portrait",
-        "segments": [("p-clean-07", 0.0, 14.0, 1.4)],
+        "segments": [("p-clean-07", 3.0, 14.6, 1.4)],
         "captions": [
-            (0.0, 3.0, "Cameras can only\nsee in the LIGHT", "hook"),
-            (3.0, 6.0, "so...", "hook"),
-            (6.0, 10.0, "work smarter,\nnot harder", "hook"),
+            (0.0, 2.5, "Cameras can only\nsee in the LIGHT", "hook"),
+            (2.5, 4.6, "so...", "hook"),
+            (4.7, 8.3, "work smarter,\nnot harder", "hook"),
         ],
         "title": "Security cameras can't see in the dark 📷 #shorts",
         "blurb": "Cameras need light. You have a pistol. Do the math.",
@@ -172,13 +172,13 @@ VIDEOS = [
     },
     {
         "id": "09-alcove", "orient": "portrait",
-        "segments": [("p-clean-01", 0.0, 10.5, 1.2)],
+        "segments": [("p-clean-01", 3.0, 8.5, 1.0)],
         "captions": [
-            (0.0, 2.8, "he's walking\nRIGHT at me", "hook"),
-            (2.8, 5.0, "don't. move.", "hook"),
-            (5.0, 8.0, "...he walked\nright past 😮‍💨", "hook"),
+            (0.0, 2.1, "he's walking\nRIGHT at me", "hook"),
+            (2.1, 3.0, "don't. move.", "hook"),
+            (3.0, 5.5, "...he walked\nright past", "hook"),
         ],
-        "sfx": [(2.8, "tiptoe"), (4.0, "tiptoe")],
+        "sfx": [(1.0, "tiptoe"), (2.1, "uh_oh", 0.7)],
         "title": "He walked RIGHT past me 😮‍💨 #shorts",
         "blurb": "Dark alcoves let guards walk right past you. Just don't stand in the light.",
         "tags": BASE_TAGS + ["shorts", "close call", "stealth"],
@@ -195,11 +195,11 @@ VIDEOS = [
     },
     {
         "id": "11-final-mission", "orient": "portrait",
-        "segments": [("p-clean-10", 0.0, 30.0, 1.6)],
+        "segments": [("p-clean-10", 0.0, 19.5, 1.3)],
         "captions": [
-            (0.0, 3.0, "Final mission:\nthey have\nFLASHLIGHTS", "hook"),
-            (3.0, 7.0, "rude.", "hook"),
-            (10.0, 13.0, "keycard ✅", "hook"),
+            (0.0, 2.5, "Final mission:\nthey have\nFLASHLIGHTS", "hook"),
+            (2.5, 4.5, "rude.", "hook"),
+            (6.5, 8.5, "keycard: got it", "hook"),
         ],
         "title": "The final mission: the guards have FLASHLIGHTS 🔦 #shorts",
         "blurb": "Flashlights, cameras, lasers, a locked door. Everything at once.",
@@ -281,9 +281,9 @@ def caption_png(path, text, style, orient):
     if style == "big":
         draw_centered(d, lines, H * (0.29 if portrait else 0.5), 140, AMBER, W, stroke=14)
     elif style == "counter":
-        draw_centered(d, lines, H * 0.84, 110, GREEN, W, stroke=12)
+        draw_centered(d, lines, H * 0.775, 110, GREEN, W, stroke=12)
     elif style == "cta":
-        cy = H * (0.70 if portrait else 0.78)
+        cy = H * (0.775 if portrait else 0.8)   # under the building, above the Shorts UI
         l1 = "FREE STEALTH GAME"
         l2 = PLAY_SHORT or "coming soon to your browser"
         f1, f2 = font(60), font(40)
@@ -437,7 +437,7 @@ def build(v, tmp):
     gameplay_end = total - offset - (v.get("outro") or 0)
     captions = list(v["captions"])
     if not v.get("outro"):
-        captions.append((max(0.0, gameplay_end - 2.8), gameplay_end, "cta", "cta"))
+        captions.append((max(0.0, gameplay_end - 2.0), gameplay_end, "cta", "cta"))
     inputs, filters, last = [], [], "[0:v]"
     for i, (t0, t1, text, style) in enumerate(captions):
         png = os.path.join(tmp, f"cap{i}.png")
@@ -470,6 +470,7 @@ def build(v, tmp):
          "-c:v", "libx264", "-preset", "slow", "-crf", "18", "-pix_fmt", "yuv420p", "-r", "30",
          "-c:a", "aac", "-b:a", "192k", "-ac", "2", "-movflags", "+faststart", "-t", f"{total:.2f}", out])
     fix_loudness(out, tmp)
+    fix_loudness(out, tmp)   # the limiter moves it a little; a second pass lands it
     print(f"{v['id']}: {total:.1f}s -> {os.path.relpath(out, ROOT)}")
     return total
 
@@ -486,7 +487,7 @@ def fix_loudness(path, tmp, target=-14.0):
         return
     fixed = os.path.join(tmp, "loud.mp4")
     run(["ffmpeg", "-loglevel", "error", "-y", "-i", path, "-c:v", "copy",
-         "-af", f"volume={gain:.2f}dB,alimiter=limit=0.84", "-c:a", "aac", "-b:a", "192k", fixed])
+         "-af", f"volume={gain:.2f}dB,alimiter=limit=0.84:level=false", "-c:a", "aac", "-b:a", "192k", fixed])
     os.replace(fixed, path)
 
 

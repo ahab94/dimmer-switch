@@ -23,11 +23,20 @@ window() {  # layout-w layout-h window-w window-h
 record() {  # name resolution level extra-flags...
 	local name=$1 res=$2 level=$3; shift 3
 	if [ -n "${ONLY:-}" ] && [[ " $ONLY " != *" $name "* ]]; then return; fi
+	# SKIP_EXISTING=1 resumes an interrupted batch.
+	if [ -n "${SKIP_EXISTING:-}" ] && [ -f "$out/$name.mp4" ]; then return; fi
 	if [ "$res" = 1080x1920 ]; then window 720 1280 1080 1920; else window 1280 720 1920 1080; fi
 	# --always-on-top: a covered window isn't redrawn on macOS, which would
 	# record frozen frames.
-	"$GODOT" --path . --always-on-top --write-movie "$out/$name.avi" --fixed-fps 30 \
-		-- --level="$level" --exit-on-end --end-hold=2 --clean --log-events "$@" > "$out/$name.log" 2>&1 || true
+	# Retry if the run gets killed from outside (no RESULT line).
+	for attempt in 1 2 3 4; do
+		"$GODOT" --path . --always-on-top --write-movie "$out/$name.avi" --fixed-fps 30 \
+			-- --level="$level" --exit-on-end --end-hold=2 --clean --log-events "$@" > "$out/$name.log" 2>&1 || true
+		grep -q RESULT "$out/$name.log" && [ -f "$out/$name.avi" ] && break
+		echo "  $name: attempt $attempt interrupted, retrying"
+		rm -f "$out/$name.avi"
+		sleep 3
+	done
 	grep -E "^EVENT" "$out/$name.log" > "$out/$name.events.txt" || true
 	echo "$name: $(grep RESULT "$out/$name.log" || echo 'no result')"
 	rm -f override.cfg
