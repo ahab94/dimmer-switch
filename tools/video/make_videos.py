@@ -32,9 +32,9 @@ OUT = os.path.join(ROOT, "build", "videos")
 AUDIO = os.path.join(ROOT, "build", "video_audio")
 FONT = "/System/Library/Fonts/Supplemental/Arial Rounded Bold.ttf"
 
-NAME = "DIMMER SWITCH"          # working title, not yet approved
-PLAY_SHORT = ""                 # e.g. "ahab94.github.io/dimmer-switch" once it's live
-PLAY = ""                       # full URL for descriptions
+NAME = "DIMMER SWITCH"
+PLAY_SHORT = "ahab94.github.io/dimmer-switch"   # burned into the end cards
+PLAY = ""   # descriptions stay link-free until the channel is verified (user request)
 
 GREEN = (90, 255, 115)
 AMBER = (255, 214, 120)
@@ -289,7 +289,7 @@ def caption_png(path, text, style, orient):
         draw_centered(d, lines, H * 0.775, 110, GREEN, W, stroke=12)
     elif style == "cta":
         cy = H * (0.775 if portrait else 0.8)   # under the building, above the Shorts UI
-        l1 = "FREE STEALTH GAME"
+        l1 = "PLAY FREE IN YOUR BROWSER" if PLAY_SHORT else "FREE STEALTH GAME"
         l2 = PLAY_SHORT or "coming soon to your browser"
         f1, f2 = font(60), font(40)
         w = min(W - 60, max(d.textlength(l1, font=f1), d.textlength(l2, font=f2)) + 120)
@@ -357,7 +357,7 @@ def card_png(path, orient, title_lines, kind):
         draw_agent_head(img, int(W * 0.5), int(H * (0.33 if portrait else 0.34)), 110 if portrait else 90)
         d = ImageDraw.Draw(img)
         draw_centered(d, [NAME], H * (0.52 if portrait else 0.6), 120 if portrait else 120, GREEN, W, stroke=12)
-        draw_centered(d, ["A FREE STEALTH GAME"], H * (0.61 if portrait else 0.72), 64 if portrait else 64, AMBER, W, stroke=8)
+        draw_centered(d, ["PLAY FREE IN YOUR BROWSER" if PLAY_SHORT else "A FREE STEALTH GAME"], H * (0.61 if portrait else 0.72), 64 if portrait else 64, AMBER, W, stroke=8)
         draw_centered(d, [PLAY_SHORT or "coming soon to your browser"], H * (0.68 if portrait else 0.82),
                       46, WHITE, W, stroke=6)
     img.save(path)
