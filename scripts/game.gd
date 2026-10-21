@@ -14,11 +14,11 @@ const Autopilot := preload("res://scripts/autopilot.gd")
 const Figures := preload("res://scripts/figures.gd")
 
 const T := World.TILE
-const SCREEN := Vector2(1280, 720)
 const HUD_H := 70.0
 const SAVE_PATH := "user://progress.cfg"
 const WATTS_PER_LAMP := 60
 const MAX_ZOOM := 1.5
+const PORTRAIT_ZOOM := 1.6
 
 enum State { MENU, BRIEF, PLAYING, PAUSED, CAUGHT, COMPLETE }
 
@@ -44,6 +44,8 @@ const C_DIM_TEXT := Color(0.55, 0.6, 0.68)
 const C_ALERT := Color(1.0, 0.3, 0.25)
 const C_WARN := Color(1.0, 0.8, 0.25)
 
+var screen := Vector2(1280, 720)   # layout size; 720x1280 in portrait
+var portrait := false              # 9:16 for phones and Shorts (--portrait)
 var state := State.MENU
 var level_index := 0
 var world: World
@@ -74,22 +76,29 @@ var _anim := 0.0           # seconds, for bobbing and blinking
 var _toast := ""
 var _toast_timer := 0.0
 var _new_best := false
+var _caught_at := 0.0
 
 # Dev flags (after `--` on the command line).
 var autopilot := false
 var trace := false
 var reckless := false
+var clumsy := false         # sneaks straight ahead into trouble (fail clips)
 var exit_on_end := false
 var log_events := false
 var timeout := 0.0
 var screenshot_path := ""
 var screenshot_wait := 1.0
+var clean := false          # hide dev labels in footage
+var end_hold := 0.0        # seconds to keep showing the result before quitting
+var nv_off_until := -1.0   # autopilot keeps the goggles off until this time (videos)
 var _plan: Array = []
 var _plan_next := 0
 var _wall_time := 0.0
 
 
 func _ready() -> void:
+	screen = get_viewport().get_visible_rect().size
+	portrait = screen.y > screen.x
 	font = ThemeDB.fallback_font
 	figures = Figures.new(self, _c)
 	_setup_input()
@@ -114,13 +123,17 @@ func _parse_flags() -> void:
 			"--autopilot": autopilot = true
 			"--trace": trace = true
 			"--reckless": reckless = true
+			"--clumsy": clumsy = true
 			"--exit-on-end": exit_on_end = true
 			"--log-events": log_events = true
 			"--nv": night_vision = true
+			"--clean": clean = true
 			"--timeout": timeout = float(a.get_slice("=", 1))
 			"--screenshot": screenshot_path = a.get_slice("=", 1)
 			"--wait": screenshot_wait = float(a.get_slice("=", 1))
-	if autopilot or reckless or exit_on_end:
+			"--end-hold": end_hold = float(a.get_slice("=", 1))
+			"--nv-off-until": nv_off_until = float(a.get_slice("=", 1))
+	if autopilot or reckless or clumsy or exit_on_end:
 		save_enabled = false
 
 
@@ -154,7 +167,10 @@ func load_level(i: int) -> void:
 	sim.setup(world)
 	# Zoom in as far as the building's height allows (capped so you still see
 	# a guard's full sight line), then follow the agent sideways.
-	zoom = minf(MAX_ZOOM, (SCREEN.y - HUD_H - 40.0) / (world.h * T))
+	if portrait:
+		zoom = minf(PORTRAIT_ZOOM, (screen.y * 0.6) / (world.h * T))
+	else:
+		zoom = minf(MAX_ZOOM, (screen.y - HUD_H - 40.0) / (world.h * T))
 	cam_x = _cam_target(true)
 	_want_shoot = false
 	_want_takedown = false
@@ -167,9 +183,9 @@ func load_level(i: int) -> void:
 		var bot = Autopilot.new()
 		bot.trace = trace
 		_plan = bot.plan(world)
-		if world.lasers.size() > 0:
+		if world.lasers.size() > 0 and nv_off_until < 0.0:
 			night_vision = true
-	state = State.BRIEF if not (autopilot or reckless or exit_on_end) else State.PLAYING
+	state = State.BRIEF if not (autopilot or reckless or clumsy or exit_on_end) else State.PLAYING
 
 
 # --- the loop ---------------------------------------------------------------
@@ -190,12 +206,17 @@ func _physics_process(delta: float) -> void:
 	if world != null:
 		cam_x = lerpf(cam_x, _cam_target(false), clampf(delta * 4.0, 0.0, 1.0))
 	if state == State.PLAYING:
+		if nv_off_until >= 0.0 and not night_vision and sim.tick >= int(nv_off_until * 60.0):
+			night_vision = true
+			if log_events:
+				print("EVENT t=%.2f nv_on" % (sim.tick / 60.0))
 		sim.step(_gather_input())
 		_handle_events()
 		if sim.outcome == "complete":
 			_on_complete()
 		elif sim.outcome == "caught":
 			state = State.CAUGHT
+			_caught_at = _anim
 			_shake = 1.0
 			if exit_on_end:
 				_report("caught")
@@ -203,12 +224,20 @@ func _physics_process(delta: float) -> void:
 
 
 func _cam_target(_snap: bool) -> float:
-	var half := SCREEN.x / 2.0 / zoom
+	var half := screen.x / 2.0 / zoom
 	var map_w := world.w * T
 	if map_w <= half * 2.0:
 		return map_w / 2.0
+	# Look ahead: keep more of the floor in front of him on screen (that's
+	# where the guards and lamps he's dealing with are), and when he shoots,
+	# frame the lamp too.
 	var px: float = (sim.visual_pos().x + 0.5) * T
-	return clampf(px, half, map_w - half)
+	var lead := half * 0.4
+	var target := px + sim.face * lead
+	if sim.action.get("type", "") == "shoot":
+		var lamp: Vector2i = world.lamps[sim.action["lamp"]]
+		target = (px + (lamp.x + 0.5) * T) / 2.0
+	return clampf(target, half, map_w - half)
 
 
 func _gather_input() -> Dictionary:
@@ -217,8 +246,8 @@ func _gather_input() -> Dictionary:
 			_plan_next += 1
 			return _plan[_plan_next - 1]
 		return {}
-	if reckless:
-		return {"dir": Vector2i.RIGHT, "run": true}
+	if reckless or clumsy:
+		return {"dir": Vector2i.RIGHT, "run": reckless}
 	var dir := Vector2i(int(Input.is_action_pressed("right")) - int(Input.is_action_pressed("left")),
 		int(Input.is_action_pressed("down")) - int(Input.is_action_pressed("up")))
 	var input := {"dir": dir, "run": Input.is_action_pressed("run")}
@@ -288,6 +317,8 @@ func _on_complete() -> void:
 func _report(what: String) -> void:
 	print("RESULT level=%d %s time=%.2f rating=%s alerts=%d" % [
 		level_index + 1, what, sim.tick / 60.0, sim.rating(), 1 if sim.outcome == "caught" else 0])
+	if end_hold > 0.0:
+		await get_tree().create_timer(end_hold).timeout
 	get_tree().quit()
 
 
@@ -395,13 +426,15 @@ func _c(col: Color) -> Color:
 
 
 func _draw() -> void:
-	draw_rect(Rect2(Vector2.ZERO, SCREEN), C_BG)
+	draw_rect(Rect2(Vector2.ZERO, screen), C_BG)
 	if state == State.MENU:
 		_draw_menu()
 		return
 	_sv = Vector2(randf_range(-1, 1), randf_range(-1, 1)) * _shake * 6.0
-	var ty := HUD_H + (SCREEN.y - HUD_H - 34.0 - world.h * T * zoom) / 2.0
-	_wx = Transform2D(0.0, Vector2(zoom, zoom), 0.0, Vector2(SCREEN.x / 2.0 - cam_x * zoom, ty) + _sv)
+	var ty := HUD_H + (screen.y - HUD_H - 34.0 - world.h * T * zoom) / 2.0
+	if portrait:
+		ty = screen.y * 0.56 - world.h * T * zoom / 2.0   # below where Shorts captions sit
+	_wx = Transform2D(0.0, Vector2(zoom, zoom), 0.0, Vector2(screen.x / 2.0 - cam_x * zoom, ty) + _sv)
 	_draw_sky(ty)
 	draw_set_transform_matrix(_wx)
 	_draw_backdrop()
@@ -417,7 +450,7 @@ func _draw() -> void:
 	if night_vision:
 		_draw_nv_overlay()
 	if _flash > 0.0:
-		draw_rect(Rect2(Vector2.ZERO, SCREEN), Color(1, 0.95, 0.8, _flash * 0.25))
+		draw_rect(Rect2(Vector2.ZERO, screen), Color(1, 0.95, 0.8, _flash * 0.25))
 	_draw_hud()
 	match state:
 		State.BRIEF: _draw_brief()
@@ -526,11 +559,11 @@ func _corner_light(light: PackedFloat32Array) -> PackedFloat32Array:
 ## skyline are drawn in screen space and scroll slower than the building
 ## (parallax), which sells depth for free.
 func _draw_sky(top: float) -> void:
-	var sky := PackedVector2Array([Vector2(0, HUD_H), Vector2(SCREEN.x, HUD_H), Vector2(SCREEN.x, top), Vector2(0, top)])
+	var sky := PackedVector2Array([Vector2(0, HUD_H), Vector2(screen.x, HUD_H), Vector2(screen.x, top), Vector2(0, top)])
 	draw_polygon(sky, PackedColorArray([_c(Color(0.02, 0.03, 0.08)), _c(Color(0.02, 0.03, 0.08)), _c(Color(0.08, 0.09, 0.18)), _c(Color(0.08, 0.09, 0.18))]))
 	var par := -cam_x * 0.15
 	for k in 40:
-		var sx := fposmod(float((k * 211) % 1280) + par * 0.3, SCREEN.x)
+		var sx := fposmod(float((k * 211) % 1280) + par * 0.3, screen.x)
 		var sy := HUD_H + float((k * 97) % int(maxf(top - HUD_H - 10, 10)))
 		var tw := 0.5 + 0.5 * sin(_anim * 1.5 + k)
 		draw_circle(Vector2(sx, sy), 1.0, _c(Color(0.8, 0.85, 1.0, 0.25 + 0.4 * tw)))
@@ -553,8 +586,16 @@ func _draw_backdrop() -> void:
 	draw_rect(Rect2(0, -8, mw, 8), _c(Color(0.12, 0.13, 0.18)))
 	draw_line(Vector2(120, -8), Vector2(120, -50), _c(Color(0.3, 0.3, 0.35)), 2.0)
 	draw_circle(Vector2(120, -52), 2.5, Color(1, 0.2, 0.2, 0.5 + 0.5 * sin(_anim * 4.0)))
-	draw_rect(Rect2(-2000, bottom, mw + 4000, 600), _c(Color(0.05, 0.05, 0.07)))
+	draw_rect(Rect2(-2000, bottom, mw + 4000, 1200), _c(Color(0.05, 0.05, 0.07)))
 	draw_rect(Rect2(-2000, bottom + 4, mw + 4000, 3), _c(Color(0.16, 0.17, 0.2)))
+	# Sidewalk and the road below the cut-away.
+	draw_rect(Rect2(-2000, bottom + 7, mw + 4000, 26), _c(Color(0.09, 0.09, 0.11)))
+	draw_rect(Rect2(-2000, bottom + 33, mw + 4000, 5), _c(Color(0.2, 0.2, 0.23)))
+	draw_rect(Rect2(-2000, bottom + 38, mw + 4000, 120), _c(Color(0.04, 0.04, 0.05)))
+	var x := -400.0
+	while x < mw + 400.0:
+		draw_rect(Rect2(x + 60, bottom + 95, 50, 6), _c(Color(0.55, 0.5, 0.3, 0.6)))
+		x += 160.0
 
 
 func _draw_lamps() -> void:
@@ -702,9 +743,10 @@ func _draw_player() -> void:
 
 
 func _draw_nv_overlay() -> void:
-	for y in range(0, int(SCREEN.y), 4):
-		draw_line(Vector2(0, y), Vector2(SCREEN.x, y), Color(0, 0, 0, 0.12), 1.0)
-	_text(Vector2(SCREEN.x - 20, HUD_H + 26), "NV", 16, Color(C_GOGGLE, 0.8), HORIZONTAL_ALIGNMENT_RIGHT)
+	for y in range(0, int(screen.y), 4):
+		draw_line(Vector2(0, y), Vector2(screen.x, y), Color(0, 0, 0, 0.12), 1.0)
+	if not portrait:
+		_text(Vector2(screen.x - 20, HUD_H + 26), "NV", 16, Color(C_GOGGLE, 0.8), HORIZONTAL_ALIGNMENT_RIGHT)
 
 
 # --- HUD and overlays -------------------------------------------------------
@@ -722,8 +764,11 @@ func _text(pos: Vector2, s: String, size: int, col: Color, align := HORIZONTAL_A
 
 
 func _draw_hud() -> void:
-	draw_rect(Rect2(0, 0, SCREEN.x, HUD_H - 6), Color(0.03, 0.04, 0.07, 0.95))
-	draw_line(Vector2(0, HUD_H - 6), Vector2(SCREEN.x, HUD_H - 6), Color(0.2, 0.25, 0.32), 2.0)
+	if portrait:
+		_draw_hud_portrait()
+		return
+	draw_rect(Rect2(0, 0, screen.x, HUD_H - 6), Color(0.03, 0.04, 0.07, 0.95))
+	draw_line(Vector2(0, HUD_H - 6), Vector2(screen.x, HUD_H - 6), Color(0.2, 0.25, 0.32), 2.0)
 	_text(Vector2(20, 26), world.code, 14, C_GOGGLE)
 	_text(Vector2(20, 50), world.name, 22, C_TEXT)
 	# Light meter: the most important number in the game.
@@ -760,25 +805,58 @@ func _draw_hud() -> void:
 		draw_rect(Rect2(kx + 80, 32, 22, 16), C_KEY if sim.has_key else Color(0.2, 0.2, 0.24))
 	_text(Vector2(kx + 130, 22), "GOGGLES", 12, C_DIM_TEXT)
 	_text(Vector2(kx + 130, 50), "NV ON" if night_vision else "off  [N]", 16, C_GOGGLE if night_vision else C_DIM_TEXT)
-	_text(Vector2(SCREEN.x - 20, 50), "%.1f s" % (sim.tick / 60.0), 20, C_TEXT, HORIZONTAL_ALIGNMENT_RIGHT)
+	_text(Vector2(screen.x - 20, 50), "%.1f s" % (sim.tick / 60.0), 20, C_TEXT, HORIZONTAL_ALIGNMENT_RIGHT)
 	# Tip line under the map.
-	_text(Vector2(SCREEN.x / 2.0, SCREEN.y - 12), world.tip, 15, C_DIM_TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	if not clean:
+		_text(Vector2(screen.x / 2.0, screen.y - 12), world.tip, 15, C_DIM_TEXT, HORIZONTAL_ALIGNMENT_CENTER)
 	if _toast_timer > 0.0:
 		var a := clampf(_toast_timer * 2.0, 0.0, 1.0)
-		_text(Vector2(SCREEN.x / 2.0, HUD_H + 30), _toast, 20, Color(C_TEXT, a), HORIZONTAL_ALIGNMENT_CENTER)
-	if autopilot:
-		_text(Vector2(SCREEN.x - 20, 22), "AUTOPILOT", 12, C_GOGGLE, HORIZONTAL_ALIGNMENT_RIGHT)
+		_text(Vector2(screen.x / 2.0, HUD_H + 30), _toast, 20, Color(C_TEXT, a), HORIZONTAL_ALIGNMENT_CENTER)
+	if autopilot and not clean:
+		_text(Vector2(screen.x - 20, 22), "AUTOPILOT", 12, C_GOGGLE, HORIZONTAL_ALIGNMENT_RIGHT)
+
+
+## Phones and Shorts: two compact rows on top. Toasts sit just above the
+## building, where they don't collide with video captions.
+func _draw_hud_portrait() -> void:
+	draw_rect(Rect2(0, 0, screen.x, 104), Color(0.03, 0.04, 0.07, 0.95))
+	draw_line(Vector2(0, 104), Vector2(screen.x, 104), Color(0.2, 0.25, 0.32), 2.0)
+	_text(Vector2(18, 30), world.code + "  " + world.name, 22, C_TEXT)
+	_text(Vector2(screen.x - 18, 30), "%.1f s" % (sim.tick / 60.0), 20, C_TEXT, HORIZONTAL_ALIGNMENT_RIGHT)
+	var lvl: int = sim.light_here()
+	var names := ["DARK", "DIM", "LIT"]
+	var cols := [Color(0.3, 0.45, 0.4), Color(0.75, 0.65, 0.35), Color(1.0, 0.85, 0.4)]
+	for k in 3:
+		var r := Rect2(18 + k * 70, 52, 66, 34)
+		var on := k == lvl
+		draw_rect(r, Color(cols[k], 0.85 if on else 0.12))
+		_text(r.position + Vector2(33, 23), names[k], 15, Color(0.05, 0.05, 0.05) if on else C_DIM_TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	var dx := 250.0
+	var dw := screen.x - dx - 18
+	draw_rect(Rect2(dx, 52, dw, 34), Color(0.12, 0.13, 0.17))
+	var det: float = sim.detection
+	if det > 0.0:
+		draw_rect(Rect2(dx, 52, dw * det, 34), C_WARN.lerp(C_ALERT, det))
+	draw_rect(Rect2(dx, 52, dw, 34), Color(0.35, 0.38, 0.45), false, 1.5)
+	_text(Vector2(dx + dw / 2.0, 75), "HIDDEN" if world.cell(sim.occupied()) == "O" and lvl <= World.DIM else "DETECTION", 15, C_GOGGLE if world.cell(sim.occupied()) == "O" and lvl <= World.DIM else C_DIM_TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	if _toast_timer > 0.0:
+		var a := clampf(_toast_timer * 2.0, 0.0, 1.0)
+		var top: float = _wx.origin.y - 40.0
+		_text(Vector2(screen.x / 2.0, top), _toast, 30, Color(C_TEXT, a), HORIZONTAL_ALIGNMENT_CENTER)
+	if night_vision:
+		_text(Vector2(screen.x - 18, _wx.origin.y - 12), "NV", 18, Color(C_GOGGLE, 0.8), HORIZONTAL_ALIGNMENT_RIGHT)
 
 
 func _draw_panel(title: String, lines: Array, col: Color) -> void:
-	draw_rect(Rect2(Vector2.ZERO, SCREEN), Color(0, 0, 0, 0.55))
+	draw_rect(Rect2(Vector2.ZERO, screen), Color(0, 0, 0, 0.55))
 	var h := 120.0 + lines.size() * 30.0
-	var r := Rect2(SCREEN.x / 2.0 - 330, SCREEN.y / 2.0 - h / 2.0, 660, h)
+	var pw := minf(660.0, screen.x - 30.0)
+	var r := Rect2(screen.x / 2.0 - pw / 2.0, screen.y / 2.0 - h / 2.0, pw, h)
 	draw_rect(r, Color(0.04, 0.05, 0.08, 0.96))
 	draw_rect(r, col, false, 2.0)
-	_text(Vector2(SCREEN.x / 2.0, r.position.y + 60), title, 40, col, HORIZONTAL_ALIGNMENT_CENTER)
+	_text(Vector2(screen.x / 2.0, r.position.y + 60), title, 40, col, HORIZONTAL_ALIGNMENT_CENTER)
 	for k in lines.size():
-		_text(Vector2(SCREEN.x / 2.0, r.position.y + 105 + k * 30), lines[k], 19, C_TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+		_text(Vector2(screen.x / 2.0, r.position.y + 105 + k * 30), lines[k], 19, C_TEXT, HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _draw_brief() -> void:
@@ -789,14 +867,20 @@ func _draw_caught() -> void:
 	var why: String = sim.caught_by
 	var quip := {"spotted": "Somebody turned around.", "bumped into a guard": "Personal space, agent.",
 		"tripped a laser": "Should've worn the goggles."}
-	_draw_panel("SPOTTED", ["You %s." % why, quip.get(why, ""), "", "R / ENTER retry    ESC missions"], C_ALERT)
+	# Hold the panel back for a moment so the "!" and the alarm read first.
+	var since := _anim - _caught_at
+	draw_rect(Rect2(Vector2.ZERO, screen), Color(1, 0.1, 0.1, 0.18 * absf(sin(since * 9.0))))
+	if since < 0.9:
+		return
+	var said := {"spotted": "were spotted"}
+	_draw_panel("SPOTTED", ["You %s." % said.get(why, why), quip.get(why, ""), "", "R / ENTER retry    ESC missions"], C_ALERT)
 
 
 func _draw_complete() -> void:
 	var secs: float = sim.tick / 60.0
 	var shots: int = world.ammo - sim.ammo
 	var lines := [
-		"Time  %.1f s%s" % [secs, "   NEW BEST" if _new_best else ""],
+		"Time  %.1f s%s" % [secs, "   NEW BEST" if _new_best and save_enabled else ""],
 		"Rating  %s" % sim.rating(),
 		"Lamps shot %d  (%d W saved)   Takedowns %d" % [shots, shots * WATTS_PER_LAMP, sim.kos],
 		"",
@@ -810,21 +894,21 @@ func _draw_menu() -> void:
 	for k in 26:
 		var bx := k * 52.0
 		var bh := 120.0 + float((k * 73) % 160)
-		draw_rect(Rect2(bx, SCREEN.y - bh, 48, bh), Color(0.05, 0.06, 0.1))
-		for wy in range(int(SCREEN.y - bh + 12), int(SCREEN.y) - 10, 22):
+		draw_rect(Rect2(bx, screen.y - bh, 48, bh), Color(0.05, 0.06, 0.1))
+		for wy in range(int(screen.y - bh + 12), int(screen.y) - 10, 22):
 			for wx in [8, 28]:
 				if (k * 7 + wy / 22 + wx) % 5 == 0:
 					draw_rect(Rect2(bx + wx, wy, 10, 12), Color(C_LAMP, 0.35))
-	_text(Vector2(SCREEN.x / 2.0, 110), "DIMMER SWITCH", 64, C_TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	_text(Vector2(screen.x / 2.0, 110), "DIMMER SWITCH", 64, C_TEXT, HORIZONTAL_ALIGNMENT_CENTER)
 	for k in 3:
-		draw_circle(Vector2(SCREEN.x / 2.0 - 16 + k * 16, 140 + (0 if k == 1 else 4)), 5.0, C_GOGGLE)
-	_text(Vector2(SCREEN.x / 2.0, 180), "A light-and-shadow stealth game. Every lamp is your enemy.", 20, C_DIM_TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+		draw_circle(Vector2(screen.x / 2.0 - 16 + k * 16, 140 + (0 if k == 1 else 4)), 5.0, C_GOGGLE)
+	_text(Vector2(screen.x / 2.0, 180), "A light-and-shadow stealth game. Every lamp is your enemy.", 20, C_DIM_TEXT, HORIZONTAL_ALIGNMENT_CENTER)
 	var y0 := 230.0
 	for i in Levels.LEVELS.size():
 		var L: Dictionary = Levels.LEVELS[i]
 		var locked := i >= unlocked
 		var sel := i == menu_cursor
-		var r := Rect2(SCREEN.x / 2.0 - 300, y0 + i * 40, 600, 34)
+		var r := Rect2(screen.x / 2.0 - 300, y0 + i * 40, 600, 34)
 		draw_rect(r, Color(0.08, 0.12, 0.1, 0.95) if sel else Color(0.04, 0.05, 0.08, 0.9))
 		if sel:
 			draw_rect(r, C_GOGGLE, false, 2.0)
@@ -834,4 +918,4 @@ func _draw_menu() -> void:
 		var key := str(i)
 		if best_times.has(key):
 			_text(r.position + Vector2(584, 23), "%s  %.1f s" % [best_ratings.get(key, ""), best_times[key]], 15, C_DIM_TEXT, HORIZONTAL_ALIGNMENT_RIGHT)
-	_text(Vector2(SCREEN.x / 2.0, SCREEN.y - 40), "UP/DOWN choose   ENTER play   |   move WASD/arrows   SHIFT run   F shoot lamp   E takedown   N night vision", 15, C_DIM_TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	_text(Vector2(screen.x / 2.0, screen.y - 40), "UP/DOWN choose   ENTER play   |   move WASD/arrows   SHIFT run   F shoot lamp   E takedown   N night vision", 15, C_DIM_TEXT, HORIZONTAL_ALIGNMENT_CENTER)
