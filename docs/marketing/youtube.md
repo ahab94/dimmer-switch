@@ -163,18 +163,18 @@ Dimmer Switch is a free side-view stealth game where light is the enemy: shoot o
 
 **Tags:** dimmer switch, indie game, stealth game, free game, godot, gamedev, 2d stealth, spy game, light and shadow, shorts, speedrun, satisfying
 
-## 11-final-mission (Short, 15s)
+## 11-final-mission (Short, 10s)
 
-**Title:** The final mission: the guards have FLASHLIGHTS 🔦 #shorts
+**Title:** The final mission: flip the master switch 🔌 #shorts
 
 **Description:**
 
 ```
-Flashlights, cameras, lasers, a locked door. Everything at once.
+Every lamp in the building, off at once. Then you escape in the dark.
 
 Dimmer Switch is a free side-view stealth game where light is the enemy: shoot out the lamps, crawl through air ducts, hide in dark doorways and sneak past guards, cameras and invisible lasers. 10 missions. Made with the Godot engine; every sound and pixel is made in code.
 
 #indiegame #gamedev #godot #stealth
 ```
 
-**Tags:** dimmer switch, indie game, stealth game, free game, godot, gamedev, 2d stealth, spy game, light and shadow, shorts, final level, boss level
+**Tags:** dimmer switch, indie game, stealth game, free game, godot, gamedev, 2d stealth, spy game, light and shadow, shorts, final level, blackout

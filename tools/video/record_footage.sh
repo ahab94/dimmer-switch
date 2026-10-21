@@ -53,6 +53,7 @@ for n in $(seq 1 10); do
 	id=$(printf %02d "$n")
 	extra=()
 	[ "$n" = 8 ] && extra=(--nv-off-until=2.6)
+	[ "$n" = 10 ] && extra=(--nv-off-until=16.9)   # lights die first, then the goggles flip on
 	record "p-clean-$id" 1080x1920 $((n - 1)) --portrait --autopilot ${extra[@]+"${extra[@]}"} --timeout=150
 	record "l-clean-$id" 1920x1080 $((n - 1)) --autopilot ${extra[@]+"${extra[@]}"} --timeout=150
 done

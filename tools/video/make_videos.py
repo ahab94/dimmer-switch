@@ -81,7 +81,7 @@ VIDEOS = [
     {
         "id": "02-i-made-a-game", "orient": "portrait",
         "segments": [("p-clean-02", 0.0, 4.5, 1.4), ("p-clean-03", 0.4, 3.6, 1.0), ("p-clean-05", 1.0, 8.0, 1.6),
-                     ("p-clean-06", 2.5, 6.5, 1.0), ("p-clean-08", 1.8, 5.0, 1.0)],
+                     ("p-clean-06", 0.3, 4.3, 1.0), ("p-clean-08", 1.8, 5.0, 1.0)],
         "captions": [
             (0.0, 3.2, "I made a stealth game\nwhere LIGHT\nis the enemy", "hook"),
             (3.2, 6.4, "so you just...\nshoot the lights", "hook"),
@@ -150,11 +150,11 @@ VIDEOS = [
     },
     {
         "id": "07-nap-time", "orient": "portrait",
-        "segments": [("p-clean-06", 1.0, 7.5, 1.0)],
+        "segments": [("p-clean-06", 0.0, 6.0, 1.0)],
         "captions": [
-            (0.0, 2.0, "POV: you're on\nnight shift", "hook"),
-            (2.0, 3.5, "someone's\nbehind you", "hook"),
-            (3.5, 6.0, "nap time", "hook"),
+            (0.0, 1.2, "POV: you're on\nnight shift", "hook"),
+            (1.2, 2.0, "someone's\nbehind you", "hook"),
+            (2.0, 5.0, "nap time", "hook"),
         ],
         "title": "POV: you're a security guard on night shift 😴 #shorts",
         "blurb": "Never turn your back in a stealth game. Takedowns only work from behind!",
@@ -162,11 +162,12 @@ VIDEOS = [
     },
     {
         "id": "08-cameras", "orient": "portrait",
-        "segments": [("p-clean-07", 0.0, 12.0, 1.3)],
+        "segments": [("p-clean-07", 0.0, 9.0, 1.0)],
         "captions": [
-            (0.0, 2.0, "Cameras can only\nsee in the LIGHT", "hook"),
-            (2.0, 4.5, "so... lights out", "hook"),
-            (4.5, 9.2, "work smarter,\nnot harder", "hook"),
+            (0.0, 1.0, "Cameras can only\nsee in the LIGHT", "hook"),
+            (1.0, 1.9, "so... lights out", "hook"),
+            (1.9, 3.5, "then wipe\nthe footage", "hook"),
+            (3.5, 8.0, "work smarter,\nnot harder", "hook"),
         ],
         "title": "Security cameras can't see in the dark 📷 #shorts",
         "blurb": "Cameras need light. You have a pistol. Do the math.",
@@ -174,13 +175,13 @@ VIDEOS = [
     },
     {
         "id": "09-doorway", "orient": "portrait",
-        "segments": [("p-clean-01", 3.2, 8.5, 1.0)],
+        "segments": [("p-clean-01", 2.5, 7.5, 1.0)],
         "captions": [
-            (0.0, 2.1, "he's walking\nRIGHT at me", "hook"),
-            (2.1, 3.0, "don't. move.", "hook"),
-            (3.0, 5.5, "...he walked\nright past", "hook"),
+            (0.0, 2.4, "he's walking\nRIGHT at me", "hook"),
+            (2.4, 3.2, "don't. move.", "hook"),
+            (3.2, 5.0, "...he walked\nright past", "hook"),
         ],
-        "sfx": [(1.0, "tiptoe"), (2.1, "uh_oh", 0.7)],
+        "sfx": [(1.0, "tiptoe"), (2.4, "uh_oh", 0.7)],
         "title": "He walked RIGHT past me 😮‍💨 #shorts",
         "blurb": "Step back into a dark doorway and the guard walks right past. Just don't stand in the light.",
         "tags": BASE_TAGS + ["shorts", "close call", "stealth"],
@@ -197,15 +198,17 @@ VIDEOS = [
     },
     {
         "id": "11-final-mission", "orient": "portrait",
-        "segments": [("p-clean-10", 0.0, 19.5, 1.3)],
+        "segments": [("p-clean-10", 11.0, 23.0, 1.2)],
         "captions": [
-            (0.0, 2.5, "Final mission:\nthey have\nFLASHLIGHTS", "hook"),
-            (2.5, 4.5, "rude.", "hook"),
-            (6.5, 8.5, "keycard: got it", "hook"),
+            (0.0, 3.6, "Final mission:\nflip the\nmaster switch", "hook"),
+            (4.2, 5.4, "BLACKOUT", "big"),
+            (5.4, 7.6, "goggles ON", "hook"),
+            (7.6, 10.0, "now get out.", "hook"),
         ],
-        "title": "The final mission: the guards have FLASHLIGHTS 🔦 #shorts",
-        "blurb": "Flashlights, cameras, lasers, a locked door. Everything at once.",
-        "tags": BASE_TAGS + ["shorts", "final level", "boss level"],
+        "sfx": [(3.9, "uh_oh", 0.6)],
+        "title": "The final mission: flip the master switch 🔌 #shorts",
+        "blurb": "Every lamp in the building, off at once. Then you escape in the dark.",
+        "tags": BASE_TAGS + ["shorts", "final level", "blackout"],
     },
 ]
 
@@ -281,7 +284,7 @@ def caption_png(path, text, style, orient):
     lines = [l.strip() for l in text.split("\n")] if text else []
     portrait = orient == "portrait"
     if style == "big":
-        draw_centered(d, lines, H * (0.29 if portrait else 0.5), 140, AMBER, W, stroke=14)
+        draw_centered(d, lines, H * (0.215 if portrait else 0.5), 140, AMBER, W, stroke=14)
     elif style == "counter":
         draw_centered(d, lines, H * 0.775, 110, GREEN, W, stroke=12)
     elif style == "cta":
